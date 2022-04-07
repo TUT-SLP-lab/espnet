@@ -223,7 +223,11 @@ class BatchBeamSearch(BeamSearch):
         )
         scores, states = self.score_full(running_hyps, x.expand(n_batch, *x.shape))
         for k in self.full_scorers:
-            weighted_scores += self.weights[k] * scores[k]
+            # weighted_scores += self.weights[k] * scores[k]
+            weighted_scores += self.weights["decoder"] * (scores["decoder"]-(self.weights["lm"]*scores["lm"]))
+            # weighted_scores += self.weights["length_bonus"] * scores["length_bonus"]
+            weighted_scores += self.weights["lm_add"] * scores["lm_add"]
+            
         # partial scoring
         if self.do_pre_beam:
             pre_beam_scores = (

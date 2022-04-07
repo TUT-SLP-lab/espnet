@@ -298,7 +298,9 @@ class BeamSearch(torch.nn.Module):
             weighted_scores = torch.zeros(self.n_vocab, dtype=x.dtype, device=x.device)
             scores, states = self.score_full(hyp, x)
             for k in self.full_scorers:
-                weighted_scores += self.weights[k] * scores[k]
+                # weighted_scores += self.weights[k] * scores[k]
+                weighted_scores += self.weights["decoder"] * (scores["decoder"]-(self.weights["lm"]*scores["lm"]))
+                weighted_scores += self.weights["lm_add"] * scores["lm_add"]
             # partial scoring
             if self.do_pre_beam:
                 pre_beam_scores = (

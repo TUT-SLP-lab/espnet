@@ -53,7 +53,9 @@ class Speech2Text:
         asr_train_config: Union[Path, str],
         asr_model_file: Union[Path, str] = None,
         lm_train_config: Union[Path, str] = None,
+        lm_train_add_config: Union[Path, str] = None,
         lm_file: Union[Path, str] = None,
+        lm_file_add: Union[Path, str] = None,
         token_type: str = None,
         bpemodel: str = None,
         device: str = "cpu",
@@ -64,6 +66,7 @@ class Speech2Text:
         beam_size: int = 20,
         ctc_weight: float = 0.5,
         lm_weight: float = 1.0,
+        lm_add_weight: float = 1.0, # TODO 減算用のLMの重み
         penalty: float = 0.0,
         nbest: int = 1,
         streaming: bool = False,
@@ -93,11 +96,18 @@ class Speech2Text:
             )
             scorers["lm"] = lm.lm
 
+        if lm_train_add_config is not None:
+            lm_add, lm_train_add_args = LMTask.build_model_from_file(
+                lm_train_add_config, lm_file_add, device
+            )
+            scorers["lm_add"] = lm_add.lm
+
         # 3. Build BeamSearch object
         weights = dict(
             decoder=1.0 - ctc_weight,
             ctc=ctc_weight,
             lm=lm_weight,
+            lm_add = lm_add_weight,
             length_bonus=penalty,
         )
         beam_search = BeamSearch(
@@ -237,6 +247,7 @@ def inference(
     seed: int,
     ctc_weight: float,
     lm_weight: float,
+    lm_add_weight: float, # TODO 減算用のLMの重み
     penalty: float,
     nbest: int,
     num_workers: int,
@@ -246,7 +257,9 @@ def inference(
     asr_train_config: str,
     asr_model_file: str,
     lm_train_config: Optional[str],
+    lm_train_add_config: Optional[str],
     lm_file: Optional[str],
+    lm_file_add: Optional[str]
     word_lm_train_config: Optional[str],
     word_lm_file: Optional[str],
     token_type: Optional[str],
@@ -280,7 +293,9 @@ def inference(
         asr_train_config=asr_train_config,
         asr_model_file=asr_model_file,
         lm_train_config=lm_train_config,
+        lm_train_add_config=lm_train_add_config,
         lm_file=lm_file,
+        lm_file_add=lm_file_add,
         token_type=token_type,
         bpemodel=bpemodel,
         device=device,
@@ -290,6 +305,7 @@ def inference(
         beam_size=beam_size,
         ctc_weight=ctc_weight,
         lm_weight=lm_weight,
+        lm_add_weight=lm_add_weight, # 減算用のLMモデル
         penalty=penalty,
         nbest=nbest,
         streaming=streaming,
@@ -392,7 +408,9 @@ def get_parser():
     group.add_argument("--asr_train_config", type=str, required=True)
     group.add_argument("--asr_model_file", type=str, required=True)
     group.add_argument("--lm_train_config", type=str)
+    group.add_argument("--lm_train_add_config", type=str)
     group.add_argument("--lm_file", type=str)
+    group.add_argument("--lm_file_add", type=str)
     group.add_argument("--word_lm_train_config", type=str)
     group.add_argument("--word_lm_file", type=str)
 
@@ -428,6 +446,7 @@ def get_parser():
         help="CTC weight in joint decoding",
     )
     group.add_argument("--lm_weight", type=float, default=1.0, help="RNNLM weight")
+    group.add_argument("--lm_add_weight", type=float, default=1.0, help="RNNL add weight")
     group.add_argument("--streaming", type=str2bool, default=False)
 
     group = parser.add_argument_group("Text converter related")

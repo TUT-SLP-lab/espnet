@@ -1114,6 +1114,8 @@ if ! "${skip_eval}"; then
             else
                 _opts+="--lm_train_config ${lm_exp}/config.yaml "
                 _opts+="--lm_file ${lm_exp}/${inference_lm} "
+                _opts+="--lm_train_add_config ${lm_exp}/config_add.yaml " # Add😡
+                _opts+="--lm_file_add ${lm_exp}/${inference_lm_add} " # Add😡
             fi
         fi
 

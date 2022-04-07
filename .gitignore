@@ -26,6 +26,8 @@ test_spm.model
 .vscode*
 *.vim
 *.swp
+*.nfs*
+*.out
 
 # recipe related
 egs*/*/*/data*

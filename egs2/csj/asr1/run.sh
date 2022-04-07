@@ -9,9 +9,19 @@ train_set=train_nodup
 valid_set=train_dev
 test_sets="eval1 eval2 eval3"
 
-asr_config=conf/train_asr_conformer.yaml
-inference_config=conf/decode_asr.yaml
-lm_config=conf/train_lm.yaml
+
+#ここでは音声認識モデルの種類を選べる
+#今回はTransformerモデル
+#他には、train_asr_rnn.yamlとすると、RNNモデル
+#train_asr_conformer.yamlとするとConformerモデル
+asr_config=conf/train_asr_transformer.yaml 
+
+#ここでは音声認識モデルを用いた際のデコード設定ファイルを指定
+#Shallow Fusionの言語モデル重みを変えたりできる
+inference_config=conf/decode_asr.yaml 
+
+#言語モデルについての設定ファイル       
+lm_config=conf/train_lm.yaml 
 
 # speed perturbation related
 # (train_set will be "${train_set}_sp" if speed_perturb_factors is specified)
