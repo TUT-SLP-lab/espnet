@@ -16,16 +16,16 @@ DNS=
 DNS2=
 DNS3=
 DSING=downloads
-WSJ0=
+WSJ0=/mnt/data1/database/CHiME4/data/WSJ0/wsj0
 WSJ1=
 WSJCAM0=
 REVERB=
 REVERB_OUT="${PWD}/REVERB"  # Output file path
-CHIME3=
-CHIME4=
+CHIME3=/mnt/data1/database/CHiME3
+CHIME4=/mnt/data1/database/CHiME4
 CHIME5=
 CSJDATATOP=
-CSJVER=dvd  ## Set your CSJ format (dvd or usb).
+CSJVER=usb  ## Set your CSJ format (dvd or usb).
             ## Usage    :
             ## Case DVD : We assume CSJ DVDs are copied in this directory with the names dvd1, dvd2,...,dvd17.
             ##            Necessary directory is dvd3 - dvd17.
@@ -190,13 +190,13 @@ if [[ "$(hostname -d)" == clsp.jhu.edu ]]; then
     DIRHA_WSJ=
     DIRHA_WSJ_PROCESSED="${PWD}/data/local/dirha_wsj_processed"  # Output file path
     DNS=
-    WSJ0=
+    WSJ0=/mnt/data1/database/CHiME4/data/WSJ0/wsj0
     WSJ1=
     WSJCAM0=/export/corpora3/LDC/LDC95S24/wsjcam0
     REVERB=/export/corpora5/REVERB_2014/REVERB
     REVERB_OUT="${PWD}/REVERB"  # Output file path
-    CHIME3=
-    CHIME4=
+    CHIME3=/mnt/data1/database/CHiME3
+    CHIME4=/mnt/data1/database/CHiME4
     CSJDATATOP=/export/corpora5/CSJ/USB
     CSJVER=usb  ## Set your CSJ format (dvd or usb).
                 ## Usage    :
