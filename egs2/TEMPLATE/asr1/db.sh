@@ -24,7 +24,7 @@ REVERB_OUT="${PWD}/REVERB"  # Output file path
 CHIME3=/mnt/data1/database/CHiME3
 CHIME4=/mnt/data1/database/CHiME4
 CHIME5=
-CSJDATATOP=
+CSJDATATOP=/mnt/data1/database/CSJ
 CSJVER=usb  ## Set your CSJ format (dvd or usb).
             ## Usage    :
             ## Case DVD : We assume CSJ DVDs are copied in this directory with the names dvd1, dvd2,...,dvd17.
@@ -197,7 +197,7 @@ if [[ "$(hostname -d)" == clsp.jhu.edu ]]; then
     REVERB_OUT="${PWD}/REVERB"  # Output file path
     CHIME3=/mnt/data1/database/CHiME3
     CHIME4=/mnt/data1/database/CHiME4
-    CSJDATATOP=/export/corpora5/CSJ/USB
+    CSJDATATOP=/mnt/data1/database/CSJ
     CSJVER=usb  ## Set your CSJ format (dvd or usb).
                 ## Usage    :
                 ## Case DVD : We assume CSJ DVDs are copied in this directory with the names dvd1, dvd2,...,dvd17.

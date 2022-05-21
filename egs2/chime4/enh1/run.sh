@@ -8,7 +8,7 @@ set -o pipefail
 sample_rate=16k
 # Path to a directory containing extra annotations for CHiME4
 # Run `local/data.sh` for more information.
-extra_annotations=/mnt/data1/database/CHiME4/data/annotations
+extra_annotations=/mnt/data1/database/CHiME4_diff/CHiME3/data/annotations
 
 # train_set=tr05_simu_isolated_6ch_track
 # valid_set=dt05_simu_isolated_6ch_track
@@ -25,9 +25,9 @@ test_sets="et05_simu_isolated_1ch_track"
     --fs ${sample_rate} \
     --ngpu 4 \
     --spk_num 1 \
-    --ref_channel 3 \
+    --ref_channel 1 \
     --local_data_opts "--extra-annotations ${extra_annotations} --stage 1 --stop-stage 2" \
-    --enh_config conf/tuning/train_enh_conv_tasnet.yaml \
+    --enh_config conf/tuning/train_enh_dprnn_tasnet.yaml \
     --use_dereverb_ref false \
     --use_noise_ref false \
     --inference_model "valid.loss.best.pth" \
