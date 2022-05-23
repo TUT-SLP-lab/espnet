@@ -1,22 +1,22 @@
 # minibatch related
 batch_type: folded
-batch_size: 16  # A6000 x 1
-accum_grad: 2
+batch_size: 32 # A6000 x 1 default: 16
+accum_grad: 1 # default: 2
 grad_clip: 5
 max_epoch: 50
 patience: 10
 # The initialization method for model parameters
 init: xavier_uniform
 val_scheduler_criterion:
-- valid
-- loss
-best_model_criterion:
--   - valid
-    - acc
-    - max
--   - train
+    - valid
     - loss
-    - min
+best_model_criterion:
+    - - valid
+      - acc
+      - max
+    - - train
+      - loss
+      - min
 keep_nbest_models: 10
 num_att_plot: 0
 
@@ -43,15 +43,15 @@ enh_separator_conf:
     norm_type: "gLN"
     nonlinear: relu
 enh_criterions:
-  # The first criterion
-  - name: si_snr
-    conf:
-        eps: 1e-7
-    # the wrapper for the current criterion
-    # for single-talker case, we simplely use fixed_order wrapper
-    wrapper: fixed_order
-    wrapper_conf:
-        weight: 1.0
+    # The first criterion
+    - name: si_snr
+      conf:
+          eps: 1e-7
+      # the wrapper for the current criterion
+      # for single-talker case, we simplely use fixed_order wrapper
+      wrapper: fixed_order
+      wrapper_conf:
+          weight: 1.0
 
 frontend: default
 frontend_conf:
@@ -109,11 +109,11 @@ specaug_conf:
     time_warp_mode: bicubic
     apply_freq_mask: true
     freq_mask_width_range:
-    - 0
-    - 30
+        - 0
+        - 30
     num_freq_mask: 2
     apply_time_mask: true
     time_mask_width_range:
-    - 0
-    - 40
+        - 0
+        - 40
     num_time_mask: 2

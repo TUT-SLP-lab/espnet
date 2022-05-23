@@ -15,7 +15,7 @@ lm_config=conf/train_lm_transformer.yaml
 
 # speed perturbation related
 # (train_set will be "${train_set}_sp" if speed_perturb_factors is specified)
-speed_perturb_factors="0.9 1.0 1.1"
+# speed_perturb_factors="0.9 1.0 1.1"
 
 use_word_lm=false
 word_vocab_size=65000
@@ -23,10 +23,15 @@ word_vocab_size=65000
 background_path=/mnt/data1/database/CHiME4/data/audio/16kHz/backgrounds/
 simulated_data=/mnt/data1/csj_enh_asr_simulated/
 
+# NOTE: because dump is too big, dump and exp in mnt/ 
+dumpdir=/mnt/data1/csj_enh_asr/dump
+expdir=/mnt/data1/csj_enh_asr/exp
+
 # NOTE: The default settings require 4 GPUs with 32 GB memory
 
 ./enh_asr.sh \
-    --stage 2 \
+    --ngpu 4 \
+    --stage 10 \
     --lang jp \
     --spk_num 1 \
     --ref_channel 3 \
@@ -43,6 +48,11 @@ simulated_data=/mnt/data1/csj_enh_asr_simulated/
     --train_set "${train_set}" \
     --valid_set "${valid_set}" \
     --test_sets "${test_sets}" \
+    --dumpdir  "${dumpdir}" \
+    --expdir "${expdir}" \
     --bpe_train_text "data/${train_set}/text" \
-    --lm_train_text "data/${train_set}/text data/local/other_text/text" "$@"
+    --lm_train_text "data/${train_set}/text" "$@"
+    
+    
+#" data/local/other_text/text" "$@"
 
