@@ -92,6 +92,9 @@ asr_model_conf:
     length_normalized_loss: false
     extract_feats_in_collect_stats: false
 
+ctc_conf:
+    ignore_nan_grad: true
+
 model_conf:
     bypass_enh_prob: 0.0
 

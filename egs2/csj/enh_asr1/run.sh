@@ -11,7 +11,7 @@ test_sets="eval1 eval2 eval3"
 
 enh_asr_config=conf/train_enh_asr_convtasnet_fbank_transformer.yaml
 inference_config=conf/decode_asr_transformer.yaml
-lm_config=conf/train_lm_transformer.yaml
+lm_config=conf/train_lm.yaml
 
 # speed perturbation related
 # (train_set will be "${train_set}_sp" if speed_perturb_factors is specified)
@@ -31,7 +31,7 @@ expdir=/mnt/data1/csj_enh_asr/exp
 
 ./enh_asr.sh \
     --ngpu 4 \
-    --stage 10 \
+    --stage 11 \
     --lang jp \
     --spk_num 1 \
     --ref_channel 3 \

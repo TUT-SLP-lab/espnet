@@ -44,9 +44,7 @@ class ESPnetEnhS2TModel(AbsESPnetModel):
         self.bypass_enh_prob = bypass_enh_prob
 
         self.calc_enh_loss = calc_enh_loss
-        self.extract_feats_in_collect_stats = (
-            self.s2t_model.extract_feats_in_collect_stats
-        )
+        self.extract_feats_in_collect_stats = self.s2t_model.extract_feats_in_collect_stats
 
     def forward(
         self,
@@ -104,12 +102,12 @@ class ESPnetEnhS2TModel(AbsESPnetModel):
         bypass_enh_flag, skip_enhloss_flag = False, False
         if utt_id is not None:
             # TODO(xkc): to pass category info and use predefined category list
-            if utt_id[0].endswith("SIMU"):
+            if "SIMU" in utt_id[0]:
                 # For simulated single-/multi-speaker data
                 # feed it to Enhancement and calculate loss_enh
                 bypass_enh_flag = False
                 skip_enhloss_flag = False
-            elif utt_id[0].endswith("REAL"):
+            elif "REAL" in utt_id[0]:
                 # For single-speaker real data
                 # feed it to Enhancement but without calculating loss_enh
                 bypass_enh_flag = False

@@ -29,7 +29,7 @@ class RewriteDataText:
     def rewrite_segments(self):
         # parallel 処理
         def segment_replace(search_name, file_name, s):
-            return s.replace(search_name, file_name.split(".")[0])
+            return s.replace(search_name, file_name.split(".")[0] + "-SIMU")  # A01M0141-010-CAF_SIMU
 
         with open(self.data_path + "/segments") as f:
             lines = f.readlines()
@@ -72,8 +72,8 @@ class RewriteDataText:
         # rewrite to clean.wav
         lines = []
         for clean in self.clean_wav_list:
-            wav_name = clean.split("/")[-1].split(".")[0]  # A01M0141-010-CAF
-            lines.append(f"{wav_name} cat {clean} |\n")
+            wav_name = clean.split("/")[-1].split(".")[0]  # A01M0141-010-CAF-SIMU
+            lines.append(f"{wav_name}-SIMU cat {clean} |\n")
         lines.sort()
         with open(self.data_path + "/spk1.scp", "w") as f:
             f.writelines(lines)
@@ -83,9 +83,9 @@ class RewriteDataText:
     def rewrite_noise1(self):
         # rewrite to Noise.wav
         lines = []
-        for clean in self.noise_wav_list:
-            file_name = clean.split("/")[-1].split(".")[0]  # A01M0141-010-CAF
-            lines.append(f"{file_name} cat {clean} |\n")
+        for noise in self.noise_wav_list:
+            file_name = noise.split("/")[-1].split(".")[0]
+            lines.append(f"{file_name}-SIMU cat {noise} |\n")  # A01M0141-010-CAF-SIMU
 
         lines.sort()
         with open(self.data_path + "/noise1.scp", "w") as f:
@@ -97,7 +97,7 @@ class RewriteDataText:
         lines = []
         for wav in self.noisy_wav_list:
             file_name = wav.split("/")[-1].split(".")[0]
-            lines.append(f"{file_name} cat {wav} |\n")
+            lines.append(f"{file_name}-SIMU cat {wav} |\n")  # # A01M0141-010-CAF-SIMU
 
         lines.sort()
         with open(self.data_path + "/wav.scp", "w") as f:
@@ -130,7 +130,7 @@ class RewriteDataText:
     def rewrite_text(self):
         # parallel　処理
         def text_replace(search_name, file_name, s):
-            return s.replace(search_name, file_name.split(".")[0])
+            return s.replace(search_name, file_name.split(".")[0] + "-SIMU")
 
         with open(self.data_path + "/text") as f:
             lines = f.readlines()
