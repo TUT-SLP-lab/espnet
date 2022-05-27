@@ -1,4 +1,3 @@
-
 encoder: stft
 encoder_conf:
     n_fft: 512
@@ -16,14 +15,13 @@ separator_conf:
     unit: 128
     dropout: 0.2
 
-criterions: 
-  # The first criterion
-  - name: mse 
-    conf:
-      compute_on_mask: True
-      mask_type: PSM^2
-    # the wrapper for the current criterion
-    # for single-talker case, we simplely use fixed_order wrapper
-    wrapper: fixed_order
-    wrapper_conf:
-      weight: 1.0
+criterions:
+    # The first criterion
+    - name: si_snr
+      conf:
+          eps: 1.0e-7
+      # the wrapper for the current criterion
+      # for single-talker case, we simplely use fixed_order wrapper
+      wrapper: fixed_order
+      wrapper_conf:
+          weight: 1.0

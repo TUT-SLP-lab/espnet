@@ -1,10 +1,10 @@
 # minibatch related
-batch_type: folded
+batch_type: folded # base_batch_size // max_i(1 + L_i // f_i)
 batch_size: 32 # A6000 x 1 default: 16
 accum_grad: 1 # default: 2
-grad_clip: 5
+grad_clip: 5 # Gradient norm threshold to clip
 max_epoch: 50
-patience: 10
+patience: 10 # Number of epochs to wait without improvement before stopping the training (early stopping)
 # The initialization method for model parameters
 init: xavier_uniform
 val_scheduler_criterion:
@@ -46,7 +46,7 @@ enh_criterions:
     # The first criterion
     - name: si_snr
       conf:
-          eps: 1e-7
+          eps: 1e-7 # epsilon
       # the wrapper for the current criterion
       # for single-talker case, we simplely use fixed_order wrapper
       wrapper: fixed_order
@@ -88,7 +88,7 @@ asr_decoder_conf:
 
 asr_model_conf:
     ctc_weight: 0.3
-    lsm_weight: 0.1
+    lsm_weight: 0.1 # label smoothing weight いわゆるε　https://cvml-expertguide.net/terms/dl/regularization/label-smoothing/
     length_normalized_loss: false
     extract_feats_in_collect_stats: false
 

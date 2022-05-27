@@ -9,7 +9,7 @@ train_set=train_nodup
 valid_set=train_dev
 test_sets="eval1 eval2 eval3"
 
-asr_config=conf/train_asr_conformer.yaml
+asr_config=conf/train_asr_transformer_same_with_enh_asr.yaml
 inference_config=conf/decode_asr.yaml
 lm_config=conf/train_lm.yaml
 
