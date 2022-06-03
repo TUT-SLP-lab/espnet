@@ -5,8 +5,8 @@ set -e
 set -u
 set -o pipefail
 
-train_set=train_nodup
-valid_set=train_dev
+train_set=train_nodup_multi_noisy
+valid_set=train_dev_multi_noisy
 test_sets="eval1 eval2 eval3"
 
 enh_asr_config=conf/train_enh_asr_convtasnet_fbank_transformer.yaml
@@ -31,11 +31,11 @@ expdir=/mnt/data1/csj_enh_asr/exp
 
 ./enh_asr.sh \
     --ngpu 4 \
-    --stage 11 \
+    --stage 2 \
     --lang jp \
     --spk_num 1 \
     --ref_channel 3 \
-    --local_data_opts "--background_path  ${background_path} --stage 3 --simulated_data ${simulated_data}"  \
+    --local_data_opts "--background_path  ${background_path} --stage 5 --simulated_data ${simulated_data}"  \
     --nlsyms_txt data/nlsyms.txt \
     --token_type char \
     --feats_type raw \

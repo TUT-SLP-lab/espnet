@@ -16,66 +16,24 @@ from joblib import Parallel, delayed
 
 
 class RewriteDataText:
-    def __init__(self, noisy_path: str, isolated_path: str, data_path: str) -> None:
+    def __init__(self, noisy_path: str,clean_path: str, isolated_path: str, data_path: str) -> None:
         self.noisy_path = noisy_path
+        self.clean_path = clean_path
         self.isolated_path = isolated_path
         self.data_path = data_path
 
         self.noisy_wav_list = glob.glob(self.noisy_path + "/*.wav")
         self.noise_wav_list = glob.glob(self.isolated_path + "/*Noise.wav")
         self.clean_wav_list = glob.glob(self.isolated_path + "/*Clean.wav")
-        # backup
-
-    def rewrite_segments(self):
-        # parallel 処理
-        def segment_replace(search_name, file_name, s):
-            return s.replace(search_name, file_name.split(".")[0] + "-SIMU")  # A01M0141-010-CAF_SIMU
-
-        with open(self.data_path + "/segments") as f:
-            lines = f.readlines()
-
-            # prepare segment dict
-            line_list = []
-            current_name = ""
-            segmtn_dict = {}
-            for line in lines:
-                data_name = line.split(" ")[0].split("_")[0]  # A01M0097 from segment
-                if current_name != data_name:
-                    segmtn_dict[current_name] = line_list
-                    line_list = []
-                    current_name = data_name
-                line_list.append(line)
-
-            segmtn_dict[current_name] = line_list
-            print("prepared segment")
-
-            line_list = []
-            for i, file_name in enumerate(self.noisy_wav_list):
-                file_name = file_name.split("/")[-1]
-                search_name = file_name.split("-")[0]  # A02M0012 from noisy file
-                result_line = Parallel(n_jobs=-1)(
-                    delayed(segment_replace)(search_name, file_name, s) for s in segmtn_dict[search_name]
-                )
-                # 結合
-                line_list += result_line
-                if i % 100 == 0:
-                    print(f"finish to prepare {i+1}/{len(self.noisy_wav_list)}")
-
-            line_list.sort()
-
-        with open(self.data_path + "/segments", "w") as f:  # 上書き
-            f.writelines(line_list)
-
-        print("finish to rewrite segment!")
 
     def rewrite_spk1(self):
         # rewrite to clean.wav
         lines = []
         for clean in self.clean_wav_list:
-            wav_name = clean.split("/")[-1].split(".")[0]  # A01M0141-010-CAF-SIMU
-            lines.append(f"{wav_name}-SIMU cat {clean} |\n")
+            wav_name = clean.split("/")[-1].split(".")[0]  # A01M0141_010_CAF_SIMU
+            lines.append(f"{wav_name} cat {clean} |\n")
         lines.sort()
-        with open(self.data_path + "/spk1.scp", "w") as f:
+        with open(self.data_path + "/spk1.scp", "w") as f: # 新規上書き
             f.writelines(lines)
 
         print("finish to rewrite spk1!")
@@ -84,58 +42,56 @@ class RewriteDataText:
         # rewrite to Noise.wav
         lines = []
         for noise in self.noise_wav_list:
-            file_name = noise.split("/")[-1].split(".")[0]
-            lines.append(f"{file_name}-SIMU cat {noise} |\n")  # A01M0141-010-CAF-SIMU
+            file_name = noise.split("/")[-1].split(".")[0] # A01M0141_010_CAF_SIMU
+            lines.append(f"{file_name} cat {noise} |\n")  
 
         lines.sort()
-        with open(self.data_path + "/noise1.scp", "w") as f:
+        with open(self.data_path + "/noise1.scp", "w") as f: # 新規上書き
             f.writelines(lines)
         print("finish to rewrite noise1!")
 
     def rewrite_wav(self):
         # rewrite to Noise.wav
         lines = []
+        # noisy data
         for wav in self.noisy_wav_list:
-            file_name = wav.split("/")[-1].split(".")[0]
-            lines.append(f"{file_name}-SIMU cat {wav} |\n")  # # A01M0141-010-CAF-SIMU
+            file_name = wav.split("/")[-1].split(".")[0] # A01M0141_010_CAF_SIMU
+            lines.append(f"{file_name} {wav} \n")
 
+        # clean data 
+        with open(self.clean_path+"/wav.scp", "r") as f:
+            lines.extend(f.readlines())
+        
         lines.sort()
-        with open(self.data_path + "/wav.scp", "w") as f:
+        with open(self.data_path + "/wav.scp", "w") as f: # 上書き
             f.writelines(lines)
         print("finish to rewrite wav!")
 
-    def rewrite_text_spk2utt(self):
+    def rewrite_text_utt2spk(self):
 
-        spk2utt_list = [""]
-        with open(self.data_path + "/segments") as f:
-            current_data = ""
+        utt2spk_list = []
+        with open(self.data_path + "/wav.scp") as f:
             for line in f:
-                segment_name = line.split(" ")[0]
-                name = segment_name.split("_")[0].split("-")[0]  # A05M0011
-                if current_data != name:
-                    current_data = name
-                    spk2utt_list[-1] = spk2utt_list[-1] + "\n"
-                    spk2utt_list.append(name)
-                spk2utt_list[-1] = spk2utt_list[-1] + " " + segment_name
-        # ""を除去
-        spk2utt_list = spk2utt_list[1:]
+                utt = line.split("/")[-1].split(".")[0]
+                spk = utt.split("_")[0]
+                utt2spk_list.append(f"{utt} {spk}\n")
 
-        spk2utt_list.sort()
+        utt2spk_list.sort()
 
         # utt2spk
-        with open(self.data_path + "/spk2utt", "w") as f:
-            f.writelines(spk2utt_list)
-        print("finish to rewrite spk2ut")
+        with open(self.data_path + "/utt2spk", "w") as f:
+            f.writelines(utt2spk_list)
+        print("finish to rewrite utt2spk")
 
     def rewrite_text(self):
         # parallel　処理
         def text_replace(search_name, file_name, s):
-            return s.replace(search_name, file_name.split(".")[0] + "-SIMU")
+            return s.replace(search_name, file_name.split(".")[0])
 
         with open(self.data_path + "/text") as f:
             lines = f.readlines()
 
-            # prepare segment dict
+            # prepare text dict
             line_list = []
             current_name = ""
             text_dict = {}
@@ -153,25 +109,25 @@ class RewriteDataText:
             print("prepared text dict")
 
             line_list = []
-            for i, file_name in enumerate(self.noisy_wav_list):
-                file_name = file_name.split("/")[-1]
-                search_name = file_name.split("-")[0]
-                result_line = Parallel(n_jobs=-1)(
-                    delayed(text_replace)(search_name, file_name, s) for s in text_dict[search_name]
-                )
-                # 結合
-                line_list += result_line
-                if i % 100 == 0:
-                    print(f"finish to prepare {i+1}/{len(self.noisy_wav_list)}")
-            line_list.sort()
+            # wavファイルから取得
+            with open(self.data_path + "/wav.scp") as f:
+                lines=f.readlines()
+                for i, file_name in enumerate(lines):
+                    file_name = file_name.split("/")[-1]
+                    search_name = file_name.split("_")[0] # A010000
+                    result_line = Parallel(n_jobs=-1)(
+                        delayed(text_replace)(search_name, file_name, s) for s in text_dict[search_name]
+                    )
+                    # 結合
+                    line_list += result_line
+                    if i % 100 == 0:
+                        print(f"finish to prepare {i+1}/{len(lines)}")
+                line_list.sort()
 
         with open(self.data_path + "/text", "w") as f:  # 上書き
             f.writelines(line_list)
 
         print("finish to rewrite text!")
-
-    def rewrite_utt2category(self):
-        pass
 
 
 def get_args():
@@ -179,6 +135,9 @@ def get_args():
 
     parser.add_argument(
         "--noisy-path", type=str, required=True, help="path to scp_file",
+    )
+    parser.add_argument(
+        "--clean-path", type=str, required=True, help="path to clean_file dir",
     )
     parser.add_argument(
         "--isolated-path", type=str, required=True, help="path to noise directory",
@@ -194,11 +153,11 @@ if __name__ == "__main__":
     # --isolated-path /mnt/data1/csj_enh_asr_simulated/noisy/eval1/isolated --data-path data/eval1/
     args = get_args()
 
-    rewrite_data_text = RewriteDataText(args.noisy_path, args.isolated_path, args.data_path)
+    rewrite_data_text = RewriteDataText(args.noisy_path, args.clean_path, args.isolated_path, args.data_path)
     # rewrite
-    rewrite_data_text.rewrite_segments()
+    # rewrite_data_text.rewrite_segments()
     rewrite_data_text.rewrite_spk1()
     rewrite_data_text.rewrite_noise1()
     rewrite_data_text.rewrite_wav()
-    rewrite_data_text.rewrite_text_spk2utt()
+    rewrite_data_text.rewrite_text_utt2spk()
     rewrite_data_text.rewrite_text()

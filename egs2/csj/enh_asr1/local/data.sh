@@ -11,7 +11,7 @@ log() {
 SECONDS=0
 
 stage=0
-stop_stage=3
+stop_stage=5
 nj=-1
 background_path=
 
@@ -97,20 +97,36 @@ if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
 
 fi
 
+#debug用
+cp -r data data_BK
+
+# segmentから一度utils/split_scp.pl を使って切り出す。
+if [ ${stage} -le 2 ] && [ ${stop_stage} -ge 2 ]; then
+    log "stage 2: split CSJ by segment file"
+    loop=${recog_set}" ${train_dev} ${train_set}"
+    if [ -e ${simulated_data}/splited_wav ]; then rm -rf ${simulated_data}/splited_wav ; fi
+    mkdir ${simulated_data}/splited_wav
+    
+    for x in ${loop}; do
+        python pyscripts/audio/format_wav_scp.py data/${x}/wav.scp ${simulated_data}/splited_wav/${x} --segments data/${x}/segments --audio-format wav
+        cat ${simulated_data}/splited_wav/${x}/wav.scp > data/${x}/wav.scp
+        rm data/${x}/segments
+    done
+fi
+
 # eval1 eval2 eval3 train_dev train_nodev train_set を雑音重畳していく。
 
 ## added by kinouchi
-if [ ${stage} -le 2 ] && [ ${stop_stage} -ge 2 ]; then
-    log "stage 2 : Simulate the noisy data for enhancement"
+if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
+    log "stage 3 : Simulate the noisy data for enhancement"
 
     if [ ! -e data/logs ]; then mkdir data/logs ; fi
 
-    if [ -e ${simulated_data} ]; then rm -rf ${simulated_data} ; fi
-    mkdir ${simulated_data}
     # backgroundを取ってきて、test(eval) とdev(train_dev) train(train_set)に分ける。
     # 雑音ノイズのファイルが少ないので、testは010の前半、devは010の後半を使う。
     if [ -e ${simulated_data}/background ]; then rm -rf ${simulated_data}/background ; fi
     mkdir ${simulated_data}/background
+
     mkdir ${simulated_data}/background/eval_dev ${simulated_data}/background/train ${simulated_data}/background/all
     cp ${background_path}/*_CAF.CH1.* ${simulated_data}/background/all                        # cafeのCH1のみを取得(DEBUG用)
 
@@ -123,45 +139,61 @@ if [ ${stage} -le 2 ] && [ ${stop_stage} -ge 2 ]; then
     mkdir ${simulated_data}/noisy
 
     # test set
-    echo "simulating now .... There are logs in data/logs/datasimulation_*_testset.log"
+    log "simulating now .... There are logs in data/logs/datasimulation_*_testset.log"
     loop=${recog_set}
     for x in ${loop}; do
         mkdir ${simulated_data}/noisy/${x}
-        python3 local/CSJ_simulate_data_patched_parallel.py --nj ${nj} --scp_file data/${x}/wav.scp \
-            --noise_path ${simulated_data}/background/eval_dev --use_data first --dist ${simulated_data}/noisy/${x}     > data/logs/datasimulation_${x}_testset.log
+        python3 local/CSJ_simulate_data_patched_parallel.py --nj ${nj} --splited_wav_dir ${simulated_data}/splited_wav/${x} \
+            --noise_path ${simulated_data}/background/eval_dev --data_type test --dist ${simulated_data}/noisy/${x}    #> data/logs/datasimulation_${x}.log
     done
+    log "finished to simualte ${x} noisy set"
+    
     # valid set
     mkdir ${simulated_data}/noisy/${train_dev}
-    python3 local/CSJ_simulate_data_patched_parallel.py --nj ${nj} --scp_file data/${train_dev}/wav.scp \
-        --noise_path ${simulated_data}/background/eval_dev --use_data end --dist ${simulated_data}/noisy/${train_dev}   > data/logs/datasimulation_validset.log
+    python3 local/CSJ_simulate_data_patched_parallel.py --nj ${nj} --splited_wav_dir ${simulated_data}/splited_wav/${train_dev} \
+        --noise_path ${simulated_data}/background/eval_dev --data_type valid --dist ${simulated_data}/noisy/${train_dev} #> data/logs/datasimulation_validset.log
+    log "finished to simualte valid noisy set"
 
     # train set
     mkdir ${simulated_data}/noisy/${train_set}
-    python3 local/CSJ_simulate_data_patched_parallel.py --nj ${nj} --scp_file data/${train_set}/wav.scp \
-        --noise_path ${simulated_data}/background/train --use_data all --dist ${simulated_data}/noisy/${train_set}      > data/logs/datasimulation_trainset.log
-    log "finish to simlate noisy data"
+    python3 local/CSJ_simulate_data_patched_parallel.py --nj ${nj} --splited_wav_dir ${simulated_data}/splited_wav/${train_set} \
+        --noise_path ${simulated_data}/background/train --data_type train --dist ${simulated_data}/noisy/${train_set}    #> data/logs/datasimulation_trainset.log
+    log "finish to simlate train noisy data"
 fi
 
-if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
-    log "stage 3 : Rewrite Data path in data/"
+if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
+    log "stage 4 : make simulated kaldi file in data/"
     if [ ! -e data/logs ]; then mkdir data/logs ; fi
     if [ -e data_BK ]; then rm -rf data_BK ; fi
     cp -r data data_BK
 
-    # test set
-    for x in ${recog_set};do
-        python3 local/rewrite_data_text.py --noisy-path ${simulated_data}/noisy/${x}/noisy --isolated-path ${simulated_data}/noisy/${x}/isolated --data-path data/${x} #> data/logs/rewrite_data_${x}_testset.log
-        cat data/${x}/spk2utt | ${utils}/spk2utt_to_utt2spk.pl > data/${x}/utt2spk
+    loop=${recog_set}" ${train_dev} ${train_set}"
+    for x in ${loop};do
+        local/rewrite_data_text.sh /mnt/data1/csj_enh_asr_simulated/noisy/${x}/noisy \
+            /mnt/data1/csj_enh_asr_simulated/splited_wav/${x} \
+            /mnt/data1/csj_enh_asr_simulated/noisy/${x}/isolated \
+            data/${x}_simulated/ data/${x}
+
+        ${utils}/sort_data.sh data/${x}_simulated/
+        log "${x} will processed"
+    done
+fi
+
+
+
+if [ ${stage} -le 5 ] && [ ${stop_stage} -ge 5 ]; then
+    log "stage 5 : conbine real and simulated data"
+    loop="${train_dev} ${train_set}" # avoid test set
+    for x in ${loop};do
+        log "combine ${x} and ${x}_simulated"
+        <data/${x}_simulated/wav.scp awk '{print($1, "SIMU")}' > data/${x}_simulated/utt2category
+        <data/${x}/wav.scp awk '{print($1, "CLEAN")}' > data/${x}/utt2category
+
+        utils/combine_data.sh --extra_files "utt2category spk1.scp" \
+            data/${x}_multi_noisy data/${x}_simulated data/${x} 
     done
 
-    # valid set
-    python3 local/rewrite_data_text.py --noisy-path ${simulated_data}/noisy/${train_dev}/noisy --isolated-path ${simulated_data}/noisy/${train_dev}/isolated --data-path data/${train_dev} #> data/logs/rewrite_data_evalset.log
-    cat data/${train_dev}/spk2utt | ${utils}/spk2utt_to_utt2spk.pl > data/${train_dev}/utt2spk
-
-    # train set
-    python3 local/rewrite_data_text.py --noisy-path ${simulated_data}/noisy/${train_set}/noisy --isolated-path ${simulated_data}/noisy/${train_set}/isolated --data-path data/${train_set} #> data/logs/rewrite_data_trainset.log
-    cat data/${train_set}/spk2utt | ${utils}/spk2utt_to_utt2spk.pl > data/${train_set}/utt2spk
-    
 fi
+
 
 log "Successfully finished. [elapsed=${SECONDS}s]"
