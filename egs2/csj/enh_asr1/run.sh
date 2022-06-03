@@ -33,6 +33,7 @@ expdir=/mnt/data1/csj_enh_asr/exp
     --ngpu 4 \
     --stage 2 \
     --lang jp \
+    --nj 800
     --spk_num 1 \
     --ref_channel 3 \
     --local_data_opts "--background_path  ${background_path} --stage 5 --simulated_data ${simulated_data}"  \
