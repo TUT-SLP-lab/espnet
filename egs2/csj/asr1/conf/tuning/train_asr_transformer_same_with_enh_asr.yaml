@@ -1,7 +1,7 @@
 # This configuration requires 4 GPUs with 32GB memory
 batch_type: folded
-batch_bins: 16
-accum_grad: 2
+batch_bins: 32
+accum_grad: 1
 grad_clip: 5
 max_epoch: 50
 patience: 10
