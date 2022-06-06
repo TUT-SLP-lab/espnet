@@ -2,6 +2,7 @@ import logging
 import glob
 from multiprocessing.sharedctypes import Value
 import numpy as np
+import wave
 import argparse
 import os
 import shutil
@@ -11,7 +12,6 @@ import random
 
 
 logging.basicConfig(level=logging.DEBUG)
-
 
 class NoiseSuperimposition:
     def __init__(self, nj: int, splited_wav_dir: str, noise_path: str, data_type: str, dist: str):
@@ -37,6 +37,12 @@ class NoiseSuperimposition:
 
         self.DEBUG = False
     @staticmethod
+    def cal_amp(wf):
+        buffer = wf.readframes(wf.getnframes())
+        amptitude = (np.frombuffer(buffer, dtype="int16")).astype(np.float64)
+        return amptitude
+
+    @staticmethod
     def cal_rms(amp):
         mean = np.mean(np.square(amp))
         return np.sqrt(mean)
@@ -51,41 +57,23 @@ class NoiseSuperimposition:
         """雑音重畳"""
 
         # clean data
-        clean_rate, clean_data = read(csj_file)
-        if self.DEBUG:
-            logging.info("===clean data===")
-            logging.info(f"sampling rate: {clean_rate} data: {clean_data} len: {len(clean_data)}")
+        wf = wave.open(csj_file, "r")
+        clean_data = self.cal_amp(wf)
+        clean_rate = wf.getframerate()
+        wf.close()
 
-        # noise data
-        noise_rate, noise_data = read(noise_file)
-        if self.DEBUG:
-            logging.info("===noise data===")
-            logging.info(f"sampling rate: {noise_rate} data: {noise_data} len: {len(noise_data)}")
+        wf = wave.open(noise_file, "r")
+        noise_data = self.cal_amp(wf)
+        noise_rate = wf.getframerate()
+        wf.close()
 
-        # test set はfirst, validation set はend
-        half = int(len(noise_data) / 2)
-        if self.data_type == "test":
-            print("use first")
-            noise_data = noise_data[:half]
-        if self.data_type == "valid":
-            print("use end")
-            noise_data = noise_data[half:]
-
-        # # cleanデータのほうが長かったら、noiseを繰り返す。
-        # while len(clean_data) > len(noise_data):
-        #     noise_data = np.concatenate([noise_data, noise_data])
-
-        # # モノラルなら無視(-R.wavと-L.wavがあるから)
-        # if clean_data.ndim == 2:
-        #     print("this is monoral")
-        #     return
 
         # ランダム抽出＋同じ長さにして重畳
         noise_start_index = 0
         if self.data_type == "train":
             noise_start_index = random.randint(0, len(noise_data)-len(clean_data))
         else:
-            # test, validのときは0~に固定
+            # test, validのときは100000~に固定
             noise_start_index = 0
         noise_data = noise_data[noise_start_index : noise_start_index + len(clean_data)]
 
@@ -96,7 +84,7 @@ class NoiseSuperimposition:
         # snrに対応したrmsを求める
         adjusted_noise_rms = self.cal_adjusted_rms(clean_rms, snr)
         adjusted_noise_data = noise_data * (adjusted_noise_rms/ noise_rms)
-        adjusted_noise_data = adjusted_noise_data.astype(np.int16)# intに変換
+        adjusted_noise_data = adjusted_noise_data.astype(np.float64)# intに変換W
 
         # 雑音重畳
         noisy_data = clean_data + adjusted_noise_data
@@ -113,13 +101,20 @@ class NoiseSuperimposition:
 
 
         # write noisy data
-        noise_name = noise_file.split("_")[-1].split(".")  # [STR , CH0]
-        noise_no = noise_file.split("_")[-2]  # 020
+        noise_no = noise_file.split("/")[-1].split(".")[0]  # CH0
+
+        noise_name = noise_file.split("/")[-2]  # OOFICE
         csj_name = csj_file.split("/")[-1].split(".")[0]  # A01M0056_00000_00000
 
+        # dtype　16に変換
+        #np.asarray(myArray, dtype = int)
+        noisy_data = np.asarray(noisy_data.astype(np.int16))
+        clean_data = np.asarray(clean_data.astype(np.int16))
+        adjusted_noise_data = np.asarray(adjusted_noise_data.astype(np.int16))
+        
         return_value =[]
         # <dist_path>/A01M0056_STR.CH0.wav
-        utt_name = f"{csj_name}_{noise_no}_{noise_name[0]}_{noise_name[1]}_{int(snr)}"
+        utt_name = f"{csj_name}_{noise_name}_{noise_no}_{int(snr)}"
         dist_file = f"{self.dist_noisy   }/{utt_name}_SIMU.wav"
         write(dist_file, noise_rate, noisy_data)
         return_value.append(f"{utt_name}_SIMU {dist_file}\n")
@@ -161,7 +156,7 @@ class NoiseSuperimposition:
         else:
             # test and valid 
             for n in noise_path_list:
-                for snr in [5, 0, -5]: # 5db, 0db, -5dbで作成
+                for snr in [-5, 0, 5]: # 5db, 0db, -5dbで作成
                     result = Parallel(n_jobs=self.nj)([delayed(self.superimposition)(c, n, snr) for c in csj_path_list])
                     wav_list.extend(result)
                     print(f"finished to simulate {n}")
@@ -209,6 +204,8 @@ if __name__ == "__main__":
     args = get_args()
     ns = NoiseSuperimposition(args.nj, args.splited_wav_dir, args.noise_path, args.data_type, args.dist)
     ns.run_parallel()
+
+	# python CSJ_simulate_data_patched_parallel.py --splited_wav_dir clean --noise_path noisy/OOFFICE --data_type valid --dist noisy --nj 1
 
     # ns = NoiseSuperimposition(1, "", "args.noise_path", "train", ".")
     # ns.superimposition("./A00000_000_000_clean.wav", "./A00000_000_000_noise.CH0.wav", 5)

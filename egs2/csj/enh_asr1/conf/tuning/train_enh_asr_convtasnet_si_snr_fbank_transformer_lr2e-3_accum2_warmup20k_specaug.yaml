@@ -90,7 +90,7 @@ asr_model_conf:
     ctc_weight: 0.3
     lsm_weight: 0.1 # label smoothing weight いわゆるε　https://cvml-expertguide.net/terms/dl/regularization/label-smoothing/
     length_normalized_loss: false
-    extract_feats_in_collect_stats: false
+    extract_feats_in_collect_stats: true
 
 ctc_conf:
     ignore_nan_grad: true
