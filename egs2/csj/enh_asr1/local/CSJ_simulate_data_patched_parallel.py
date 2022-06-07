@@ -114,8 +114,8 @@ class NoiseSuperimposition:
         
         return_value =[]
         # <dist_path>/A01M0056_STR.CH0.wav
-        utt_name = f"{csj_name}_{noise_name}_{noise_no}_{int(snr)}"
-        dist_file = f"{self.dist_noisy   }/{utt_name}_SIMU.wav"
+        utt_name = f"{csj_name}_{noise_name}_{noise_no}_{int(snr)}_SIMU"
+        dist_file = f"{self.dist_noisy   }/{utt_name}.wav"
         write(dist_file, noise_rate, noisy_data)
         return_value.append(f"{utt_name}_SIMU {dist_file}\n")
 

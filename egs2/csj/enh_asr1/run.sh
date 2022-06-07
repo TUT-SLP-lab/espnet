@@ -31,13 +31,12 @@ expdir=/mnt/data1/csj_enh_asr/exp
 
 ./enh_asr.sh \
     --ngpu 4 \
-    --stage 10 \
+    --stage 1 \
+    --stop_stage 5 \
     --lang jp \
-    --nj 32 \
     --spk_num 1 \
     --ref_channel 3 \
     --local_data_opts "--background_path  ${background_path} --stage 5 --simulated_data ${simulated_data}"  \
-    --nlsyms_txt data/nlsyms.txt \
     --token_type char \
     --feats_type raw \
     --feats_normalize utt_mvn \
@@ -54,6 +53,6 @@ expdir=/mnt/data1/csj_enh_asr/exp
     --bpe_train_text "data/${train_set}/text" \
     --lm_train_text "data/${train_set}/text" "$@"
     
-    
+# --nlsyms_txt data/nlsyms.txt \    
 #" data/local/other_text/text" "$@"
 

@@ -185,6 +185,7 @@ if [ ${stage} -le 5 ] && [ ${stop_stage} -ge 5 ]; then
     log "stage 5 : conbine real and simulated data"
     loop="${train_dev} ${train_set}" # avoid test set
     for x in ${loop};do
+        cp data/${x}/wav.scp data/${x}/spk1.scp
         log "combine ${x} and ${x}_simulated"
         <data/${x}_simulated/wav.scp awk '{print($1, "SIMU")}' > data/${x}_simulated/utt2category
         <data/${x}/wav.scp awk '{print($1, "CLEAN")}' > data/${x}/utt2category
