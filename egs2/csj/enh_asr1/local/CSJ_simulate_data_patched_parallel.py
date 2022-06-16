@@ -152,19 +152,19 @@ class NoiseSuperimposition:
 
         wav_list = []
         # make core simulation
-        if self.data_type=="train":
-            # snr is random
-            for n in noise_path_list:
-                result = Parallel(n_jobs=self.nj)([delayed(self.superimposition)(c, n, random.gauss(0,5)) for c in csj_path_list])
-                wav_list.extend(result)
-                print(f"finished to simulate {n}")
-        else:
-            # test and valid 
-            for n in noise_path_list:
-                for snr in [5, 0, -5]: # 5db, 0db, -5dbで作成
-                    result = Parallel(n_jobs=self.nj)([delayed(self.superimposition)(c, n, snr) for c in csj_path_list])
-                    wav_list.extend(result)
-                    print(f"finished to simulate {n}")
+        # if self.data_type=="train":
+        # snr is random
+        for n in noise_path_list:
+            result = Parallel(n_jobs=self.nj)([delayed(self.superimposition)(c, n, random.random()*20) for c in csj_path_list])
+            wav_list.extend(result)
+            print(f"finished to simulate {n}")
+        # else:
+        #     # test and valid 
+        #     for n in noise_path_list:
+        #         for snr in [5, 0, -5]: # 5db, 0db, -5dbで作成
+        #             result = Parallel(n_jobs=self.nj)([delayed(self.superimposition)(c, n, snr) for c in csj_path_list])
+        #             wav_list.extend(result)
+        #             print(f"finished to simulate {n}")
 
         wav_lines   = [r[0] for r in wav_list]
         clean_lines = [r[1] for r in wav_list]

@@ -20,12 +20,12 @@ lm_config=conf/train_lm.yaml
 use_word_lm=false
 word_vocab_size=65000
 
-background_path=/dataset/database/CHiME3/data/audio/16kHz/backgrounds/
-simulated_data=/dataset/csj_enh_asr_simulated/
+background_path=/media/kinouchitakahiro/WD_BLACK/CHiME-3/CHiME3/data/audio/16kHz/backgrounds/
+simulated_data=/media/kinouchitakahiro/WD_BLACK/csj_enh_asr_simulated/
 
 # NOTE: because dump is too big, dump and exp in mnt/ 
-dumpdir=/dataset/csj_enh_asr/dump
-expdir=/dataset/csj_enh_asr/exp
+dumpdir=dump/
+expdir=exp/
 
 # NOTE: The default settings require 4 GPUs with 32 GB memory
 
@@ -36,7 +36,7 @@ expdir=/dataset/csj_enh_asr/exp
     --nj 200 \
     --spk_num 1 \
     --ref_channel 3 \
-    --local_data_opts "--background_path  ${background_path} --stage 0 --simulated_data ${simulated_data}"  \
+    --local_data_opts "--background_path  ${background_path} --stage 2 --simulated_data ${simulated_data}"  \
     --nlsyms_txt data/nlsyms.txt \
     --token_type char \
     --feats_type raw \

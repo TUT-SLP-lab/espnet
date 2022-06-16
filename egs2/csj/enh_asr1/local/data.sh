@@ -97,9 +97,6 @@ if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
 
 fi
 
-#debug用
-cp -r data data_BK
-
 # segmentから一度utils/split_scp.pl を使って切り出す。
 if [ ${stage} -le 2 ] && [ ${stop_stage} -ge 2 ]; then
     log "stage 2: split CSJ by segment file"
@@ -130,9 +127,9 @@ if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
     mkdir ${simulated_data}/background/eval_dev ${simulated_data}/background/train ${simulated_data}/background/all
     cp ${background_path}/*_CAF.CH1.* ${simulated_data}/background/all                        # cafeのCH1のみを取得(DEBUG用)
 
-    # 010をeval用に、その他はtrain用に使う
+    # 010をeval用に、020はtrain用に使う
     mv ${simulated_data}/background/all/*_010_* ${simulated_data}/background/eval_dev
-    mv ${simulated_data}/background/all/* ${simulated_data}/background/train
+    mv ${simulated_data}/background/all/*_020_* ${simulated_data}/background/train
     rm -rf ${simulated_data}/background/all
 
     if [ -e ${simulated_data}/noisy ]; then rm -rf ${simulated_data}/noisy ; fi
@@ -164,8 +161,6 @@ fi
 if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
     log "stage 4 : make simulated kaldi file in data/"
     if [ ! -e data/logs ]; then mkdir data/logs ; fi
-    if [ -e data_BK ]; then rm -rf data_BK ; fi
-    cp -r data data_BK
 
     loop=${recog_set}" ${train_dev} ${train_set}"
     for x in ${loop};do
