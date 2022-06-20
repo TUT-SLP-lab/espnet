@@ -15,7 +15,7 @@ stop_stage=5
 nj=-1
 background_path=
 
-simulated_data=/mnt/data1/csj_enh_asr_simulated/
+simulated_data=
 help_message=$(cat << EOF
 Usage: $0 [--stage <stage>] [--stop_stage <stop_stage>] [--nj <nj>]
 
@@ -169,9 +169,9 @@ if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
 
     loop=${recog_set}" ${train_dev} ${train_set}"
     for x in ${loop};do
-        local/rewrite_data_text.sh /mnt/data1/csj_enh_asr_simulated/noisy/${x}/noisy \
-            /mnt/data1/csj_enh_asr_simulated/splited_wav/${x} \
-            /mnt/data1/csj_enh_asr_simulated/noisy/${x}/isolated \
+        local/rewrite_data_text.sh ${simulated_data}/noisy/${x}/noisy \
+            ${simulated_data}/splited_wav/${x} \
+            ${simulated_data}/noisy/${x}/isolated \
             data/${x}_simulated/ data/${x}
 
         ${utils}/sort_data.sh data/${x}_simulated/
