@@ -5,9 +5,9 @@ set -e
 set -u
 set -o pipefail
 
-train_set=train_nodup_multi_noisy
-valid_set=train_dev_multi_noisy
-test_sets="eval1_simulated eval2_simulated eval3_simulated"
+train_set=train_nodup_sp
+valid_set=train_dev
+test_sets="eval1 eval2 eval3"
 
 asr_config=conf/train_asr_transformer_same_with_enh_asr.yaml
 inference_config=conf/decode_asr.yaml
@@ -19,7 +19,8 @@ lm_config=conf/train_lm.yaml
 
 # NOTE: The default settings require 4 GPUs with 32 GB memory
 ./asr.sh \
-    --stage 2 \
+    --stage 10 \
+    --stage 10 \
     --ngpu 1 \
     --nj 200 \
     --lang jp \

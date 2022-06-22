@@ -32,7 +32,7 @@ test_spm.model
 egs*/*/*/data*
 egs*/*/*/db
 egs*/*/*/downloads
-egs*/*/*/dump
+egs*/*/*/dump*
 egs*/*/*/enhan
 egs*/*/*/local
 egs*/*/*/exp*
@@ -81,3 +81,4 @@ tools/speech_tools*
 tools/phonemizer*
 tools/py3mmseg
 tools/._*
+

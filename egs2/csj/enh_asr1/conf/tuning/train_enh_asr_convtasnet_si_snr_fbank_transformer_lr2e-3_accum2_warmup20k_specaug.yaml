@@ -1,7 +1,7 @@
 # minibatch related
 batch_type: folded # base_batch_size // max_i(1 + L_i // f_i)
-batch_size: 32 # A6000 x 1 default: 16
-accum_grad: 1 # default: 2
+batch_size: 16 # A6000 x 1 default: 16
+accum_grad: 2 # default: 2
 grad_clip: 5 # Gradient norm threshold to clip
 max_epoch: 50
 patience: 10 # Number of epochs to wait without improvement before stopping the training (early stopping)
@@ -90,7 +90,7 @@ asr_model_conf:
     ctc_weight: 0.3
     lsm_weight: 0.1 # label smoothing weight いわゆるε　https://cvml-expertguide.net/terms/dl/regularization/label-smoothing/
     length_normalized_loss: false
-    extract_feats_in_collect_stats: false
+    extract_feats_in_collect_stats: true
 
 ctc_conf:
     ignore_nan_grad: true

@@ -7,7 +7,7 @@ set -o pipefail
 
 train_set=train_nodup_multi_noisy
 valid_set=train_dev_multi_noisy
-test_sets="eval1 eval2 eval3"
+test_sets="eval1_simulated eval2_simulated eval3_simulated"
 
 enh_asr_config=conf/train_enh_asr_convtasnet_fbank_transformer.yaml
 inference_config=conf/decode_asr_transformer.yaml
@@ -31,7 +31,7 @@ expdir=exp/
 
 ./enh_asr.sh \
     --ngpu 1 \
-    --stop_stage 1 \
+    --stage 10 \
     --lang jp \
     --nj 200 \
     --spk_num 1 \
@@ -54,6 +54,6 @@ expdir=exp/
     --bpe_train_text "data/${train_set}/text" \
     --lm_train_text "data/${train_set}/text" "$@"
     
-    
+# --nlsyms_txt data/nlsyms.txt \    
 #" data/local/other_text/text" "$@"
 
