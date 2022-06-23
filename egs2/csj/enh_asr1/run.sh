@@ -5,6 +5,8 @@ set -e
 set -u
 set -o pipefail
 
+. ~/tools/line_notificator.sh 
+
 train_set=train_nodup_multi_noisy
 valid_set=train_dev_multi_noisy
 test_sets="eval1_simulated eval2_simulated eval3_simulated"
@@ -20,18 +22,19 @@ lm_config=conf/train_lm.yaml
 use_word_lm=false
 word_vocab_size=65000
 
-background_path=/media/kinouchitakahiro/WD_BLACK/CHiME-3/CHiME3/data/audio/16kHz/backgrounds/
+background_path=/media/kinouchitakahiro/WD_BLACK/database/CHiME-3/CHiME3/data/audio/16kHz/backgrounds/
 simulated_data=/media/kinouchitakahiro/WD_BLACK/csj_enh_asr_simulated/
 
 # NOTE: because dump is too big, dump and exp in mnt/ 
 dumpdir=dump/
-expdir=exp/
+expdir=exp_bug_reproduction/
 
 # NOTE: The default settings require 4 GPUs with 32 GB memory
+line_notify "start!"
 
 ./enh_asr.sh \
     --ngpu 1 \
-    --stage 10 \
+    --stage 1 \
     --lang jp \
     --nj 200 \
     --spk_num 1 \
@@ -52,8 +55,9 @@ expdir=exp/
     --dumpdir  "${dumpdir}" \
     --expdir "${expdir}" \
     --bpe_train_text "data/${train_set}/text" \
-    --lm_train_text "data/${train_set}/text" "$@"
+    --lm_train_text "data/${train_set}/text" "$@" || line_notify "failed"
     
 # --nlsyms_txt data/nlsyms.txt \    
 #" data/local/other_text/text" "$@"
 
+line_notify "finished"

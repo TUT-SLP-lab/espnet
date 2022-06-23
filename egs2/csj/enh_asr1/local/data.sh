@@ -127,9 +127,9 @@ if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
     mkdir ${simulated_data}/background/eval_dev ${simulated_data}/background/train ${simulated_data}/background/all
     cp ${background_path}/*_CAF.CH1.* ${simulated_data}/background/all                        # cafeのCH1のみを取得(DEBUG用)
 
-    # 010をeval用に、020はtrain用に使う
+    # 010をeval用に、それ以外はtrain用に使う
     mv ${simulated_data}/background/all/*_010_* ${simulated_data}/background/eval_dev
-    mv ${simulated_data}/background/all/*_020_* ${simulated_data}/background/train
+    mv ${simulated_data}/background/all/* ${simulated_data}/background/train
     rm -rf ${simulated_data}/background/all
 
     if [ -e ${simulated_data}/noisy ]; then rm -rf ${simulated_data}/noisy ; fi
