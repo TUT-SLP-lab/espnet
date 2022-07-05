@@ -50,6 +50,8 @@ from espnet2.asr.preencoder.linear import LinearProjection
 from espnet2.asr.preencoder.sinc import LightweightSincConvs
 from espnet2.asr.specaug.abs_specaug import AbsSpecAug
 from espnet2.asr.specaug.specaug import SpecAug
+from espnet2.asr.mixaug.abs_mixaug import AbsMixAug
+from espnet2.asr.mixaug.mixaug import MixAug
 from espnet2.asr.transducer.joint_network import JointNetwork
 from espnet2.asr.transducer.transducer_decoder import TransducerDecoder
 from espnet2.layers.abs_normalize import AbsNormalize
@@ -84,6 +86,15 @@ specaug_choices = ClassChoices(
         specaug=SpecAug,
     ),
     type_check=AbsSpecAug,
+    default=None,
+    optional=True,
+)
+mixaug_choices = ClassChoices(
+    name="mixaug",
+    classes=dict(
+        mixaug=MixAug,
+    ),
+    type_check=AbsMixAug,
     default=None,
     optional=True,
 )
@@ -169,6 +180,8 @@ class ASRTask(AbsTask):
         frontend_choices,
         # --specaug and --specaug_conf
         specaug_choices,
+        # --mixaug and --mixaug_conf
+        mixaug_choices,
         # --normalize and --normalize_conf
         normalize_choices,
         # --model and --model_conf
@@ -421,12 +434,21 @@ class ASRTask(AbsTask):
             frontend = None
             input_size = args.input_size
 
-        # 2. Data augmentation for spectrogram
+        # 2-2 Data augmentation for spectrogram
         if args.specaug is not None:
             specaug_class = specaug_choices.get_class(args.specaug)
+            print({**args.specaug_conf})
             specaug = specaug_class(**args.specaug_conf)
         else:
             specaug = None
+
+        # 2-1 Mix the oracle and enhancemented speech (Only when Enh_asr)
+        if args.mixaug is not None:
+            mixaug_class = mixaug_choices.get_class(args.mixaug)
+            print({**args.mixaug_conf})
+            mixaug = mixaug_class(**args.mixaug_conf)
+        else:
+            mixaug = None
 
         # 3. Normalization layer
         if args.normalize is not None:
@@ -499,6 +521,7 @@ class ASRTask(AbsTask):
             vocab_size=vocab_size,
             frontend=frontend,
             specaug=specaug,
+            mixaug=mixaug,
             normalize=normalize,
             preencoder=preencoder,
             encoder=encoder,

@@ -194,8 +194,21 @@ class ESPnetEnhS2TModel(AbsESPnetModel):
 
         # 2. ASR or ST
         if isinstance(self.s2t_model, ESPnetASRModel):  # ASR
+
+            if self.s2t_model.mixaug:
+                oracle_speech = speech
+                oracle_speech_length = speech_lengths
+            else:
+                oracle_speech = None
+                oracle_speech_length = None
+
             loss_asr, stats, weight = self.s2t_model(
-                speech_pre[0], speech_lengths, text, text_lengths
+                speech_pre[0],
+                speech_lengths,
+                text,
+                text_lengths,
+                oracle_speech,
+                oracle_speech_length,
             )
         elif isinstance(self.s2t_model, ESPnetSTModel):  # ST
             loss_asr, stats, weight = self.s2t_model(

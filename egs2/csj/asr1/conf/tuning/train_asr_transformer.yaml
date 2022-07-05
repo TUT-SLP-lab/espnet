@@ -7,9 +7,9 @@ patience: none
 # The initialization method for model parameters
 init: xavier_uniform
 best_model_criterion:
--   - valid
-    - acc
-    - max
+    - - valid
+      - acc
+      - max
 keep_nbest_models: 10
 
 encoder: transformer
@@ -53,11 +53,11 @@ specaug_conf:
     time_warp_mode: bicubic
     apply_freq_mask: true
     freq_mask_width_range:
-    - 0
-    - 30
+        - 0
+        - 30
     num_freq_mask: 2
     apply_time_mask: true
     time_mask_width_range:
-    - 0
-    - 40
+        - 0
+        - 40
     num_time_mask: 2

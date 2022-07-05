@@ -85,3 +85,4 @@ tools/ice-g2p
 tools/fairseq
 tools/._*
 
+dump*

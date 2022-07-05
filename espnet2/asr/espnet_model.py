@@ -13,6 +13,7 @@ from espnet2.asr.frontend.abs_frontend import AbsFrontend
 from espnet2.asr.postencoder.abs_postencoder import AbsPostEncoder
 from espnet2.asr.preencoder.abs_preencoder import AbsPreEncoder
 from espnet2.asr.specaug.abs_specaug import AbsSpecAug
+from espnet2.asr.mixaug.abs_mixaug import AbsMixAug
 from espnet2.asr.transducer.error_calculator import ErrorCalculatorTransducer
 from espnet2.asr.transducer.utils import get_transducer_task_io
 from espnet2.layers.abs_normalize import AbsNormalize
@@ -43,6 +44,7 @@ class ESPnetASRModel(AbsESPnetModel):
         token_list: Union[Tuple[str, ...], List[str]],
         frontend: Optional[AbsFrontend],
         specaug: Optional[AbsSpecAug],
+        mixaug: Optional[AbsMixAug],
         normalize: Optional[AbsNormalize],
         preencoder: Optional[AbsPreEncoder],
         encoder: AbsEncoder,
@@ -78,6 +80,7 @@ class ESPnetASRModel(AbsESPnetModel):
 
         self.frontend = frontend
         self.specaug = specaug
+        self.mixaug = mixaug
         self.normalize = normalize
         self.preencoder = preencoder
         self.postencoder = postencoder
@@ -157,6 +160,8 @@ class ESPnetASRModel(AbsESPnetModel):
         speech_lengths: torch.Tensor,
         text: torch.Tensor,
         text_lengths: torch.Tensor,
+        oracl_speech: torch.Tensor = None,  # Only when enh_asr
+        oracl_speech_lengths: torch.Tensor = None,  # Only when enh_asr
         **kwargs,
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], torch.Tensor]:
         """Frontend + Encoder + Decoder + Calc loss
@@ -182,7 +187,9 @@ class ESPnetASRModel(AbsESPnetModel):
         text = text[:, : text_lengths.max()]
 
         # 1. Encoder
-        encoder_out, encoder_out_lens = self.encode(speech, speech_lengths)
+        encoder_out, encoder_out_lens = self.encode(
+            speech, speech_lengths, oracl_speech, oracl_speech_lengths
+        )
         intermediate_outs = None
         if isinstance(encoder_out, tuple):
             intermediate_outs = encoder_out[1]
@@ -300,20 +307,40 @@ class ESPnetASRModel(AbsESPnetModel):
         return {"feats": feats, "feats_lengths": feats_lengths}
 
     def encode(
-        self, speech: torch.Tensor, speech_lengths: torch.Tensor
+        self,
+        speech: torch.Tensor,
+        speech_lengths: torch.Tensor,
+        oracl_speech: torch.Tensor = None,
+        oracl_speech_lengths: torch.Tensor = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Frontend + Encoder. Note that this method is used by asr_inference.py
 
         Args:
             speech: (Batch, Length, ...)
             speech_lengths: (Batch, )
+
+            oracl_speech: (Batch, Length, ...)
+            oracl_speech_lengths: (Batch, )
         """
         with autocast(False):
-            # 1. Extract feats
+            # 1. Extract feats (Convert to Mel Spectrogram)
             feats, feats_lengths = self._extract_feats(speech, speech_lengths)
+            if oracl_speech is not None and oracl_speech_lengths is not None:
+                oracl_feats, oracl_feats_length = self._extract_feats(
+                    oracl_speech, oracl_speech_lengths
+                )
+            else:
+                oracl_feats = None
+                oracl_feats_length = None
+
+            # Mix enhanced feat and noisy feat
+            if oracl_feats is not None and oracl_feats_length is not None:
+                feats, feats_lengths = self.mixaug(
+                    feats, oracl_feats, feats_lengths, oracl_feats_length
+                )
 
             # 2. Data augmentation
-            if self.specaug is not None and self.training:
+            if oracl_speech is not None and oracl_speech_lengths is not None:
                 feats, feats_lengths = self.specaug(feats, feats_lengths)
 
             # 3. Normalization for feature: e.g. Global-CMVN, Utterance-CMVN

@@ -20,6 +20,7 @@ from espnet2.tasks.asr import frontend_choices, normalize_choices
 from espnet2.tasks.asr import postencoder_choices as asr_postencoder_choices_
 from espnet2.tasks.asr import preencoder_choices as asr_preencoder_choices_
 from espnet2.tasks.asr import specaug_choices
+from espnet2.tasks.asr import mixaug_choices
 from espnet2.tasks.diar import DiarizationTask
 from espnet2.tasks.diar import attractor_choices as diar_attractor_choices_
 from espnet2.tasks.diar import decoder_choices as diar_decoder_choices_
@@ -131,6 +132,8 @@ asr_attributes = [
     "frontend_conf",
     "specaug",
     "specaug_conf",
+    "mixaug",
+    "mixaug_conf",
     "normalize",
     "normalize_conf",
     "preencoder",
@@ -207,6 +210,8 @@ class EnhS2TTask(AbsTask):
         frontend_choices,
         # --specaug and --specaug_conf
         specaug_choices,
+        # --mixaug and --mixaug_conf
+        mixaug_choices,
         # --normalize and --normalize_conf
         normalize_choices,
         # --asr_preencoder and --asr_preencoder_conf

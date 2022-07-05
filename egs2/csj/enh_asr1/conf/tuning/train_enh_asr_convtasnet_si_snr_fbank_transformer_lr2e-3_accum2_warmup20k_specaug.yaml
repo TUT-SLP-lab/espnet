@@ -120,3 +120,16 @@ specaug_conf:
         - 0
         - 40
     num_time_mask: 2
+
+mixaug: mixaug
+mixaug_conf:
+    apply_freq_mix: true
+    freq_mix_width_range:
+        - 0
+        - 30
+    num_freq_mix: 2
+    apply_time_mix: true
+    time_mix_width_range:
+        - 0
+        - 40
+    num_time_mix: 2

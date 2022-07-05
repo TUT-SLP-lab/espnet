@@ -179,7 +179,7 @@ class SISNRLoss(TimeDomainLoss):
         if eps is not None:
             logging.warning("Eps is deprecated in si_snr loss, set clamp_db instead.")
             if self.clamp_db is None:
-                self.clamp_db = -math.log10(eps / (1 - eps)) * 10
+                self.clamp_db = -math.log10(float(eps) / (1 - float(eps))) * 10
 
     def forward(self, ref: torch.Tensor, est: torch.Tensor) -> torch.Tensor:
         """SI-SNR forward.
