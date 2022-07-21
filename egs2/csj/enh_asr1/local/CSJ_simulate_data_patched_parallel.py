@@ -1,4 +1,5 @@
 import logging
+from types import List
 import glob
 from multiprocessing.sharedctypes import Value
 import numpy as np
@@ -6,15 +7,27 @@ import wave
 import argparse
 import os
 import shutil
+import tqdm
 from joblib import Parallel, delayed
 from scipy.io.wavfile import read, write
 import random
 
 
 logging.basicConfig(level=logging.DEBUG)
+random.seed(1234)
+
 
 class NoiseSuperimposition:
-    def __init__(self, nj: int, splited_wav_dir: str, noise_path: str, data_type: str, dist: str):
+    def __init__(
+        self,
+        nj: int,
+        splited_wav_dir: str,
+        noise_path: str,
+        data_type: str,
+        dist: str,
+        snr_max: int,
+        snr_min: int,
+    ):
         """
         nj : nuber jobs
         csj_path : path of CSJ
@@ -24,6 +37,9 @@ class NoiseSuperimposition:
         self.splited_wav_dir = splited_wav_dir
         self.noise_path = noise_path
         self.data_type = data_type
+        if snr_max < snr_min:
+            snr_max, snr_min = snr_min, snr_max
+        self.snr_range = [snr_min, snr_max]
 
         self.dist_noisy = dist + "/noisy"
         self.dist_isolated = dist + "/isolated"
@@ -36,6 +52,7 @@ class NoiseSuperimposition:
         os.makedirs(self.dist_isolated)
 
         self.DEBUG = False
+
     @staticmethod
     def cal_amp(wf):
         buffer = wf.readframes(wf.getnframes())
@@ -49,11 +66,11 @@ class NoiseSuperimposition:
 
     @staticmethod
     def cal_adjusted_rms(clean_rms, snr):
-        a = float(snr)/20
-        noise_rms = clean_rms/(10**a)
+        a = float(snr) / 20
+        noise_rms = clean_rms / (10**a)
         return noise_rms
 
-    def superimposition(self, csj_file: str, noise_file: str, snr: float):
+    def superimposition(self, csj_file: str, noise_file: str, snr: int):
         """雑音重畳"""
 
         # clean data
@@ -67,14 +84,23 @@ class NoiseSuperimposition:
         noise_rate = wf.getframerate()
         wf.close()
 
-
         # ランダム抽出＋同じ長さにして重畳
         noise_start_index = 0
         if self.data_type == "train":
-            noise_start_index = random.randint(0, len(noise_data)-len(clean_data))
+            noise_start_index = random.randint(0, len(noise_data) - len(clean_data))
         else:
-            # test, validのときは100000~に固定
-            noise_start_index = 0
+            if self.data_type == "valid":
+                # testは前半、validは後半
+                noise_start_index = random.randint(
+                    0, len(noise_data) / 2 - len(clean_data)
+                )
+            elif self.data_type == "test":
+                noise_start_index = random.randint(
+                    len(noise_data) / 2, len(noise_data) - len(clean_data)
+                )
+            else:
+                raise RuntimeError(f"{self.data_type} is not correct for data_type")
+
         noise_data = noise_data[noise_start_index : noise_start_index + len(clean_data)]
 
         # Root Mean Square RMSを求める
@@ -83,8 +109,8 @@ class NoiseSuperimposition:
 
         # snrに対応したrmsを求める
         adjusted_noise_rms = self.cal_adjusted_rms(clean_rms, snr)
-        adjusted_noise_data = noise_data * (adjusted_noise_rms/ noise_rms)
-        adjusted_noise_data = adjusted_noise_data.astype(np.float64)# intに変換W
+        adjusted_noise_data = noise_data * (adjusted_noise_rms / noise_rms)
+        adjusted_noise_data = adjusted_noise_data.astype(np.float64)  # intに変換W
 
         # 雑音重畳
         noisy_data = clean_data + adjusted_noise_data
@@ -95,24 +121,23 @@ class NoiseSuperimposition:
         # 正規化　(wavが16bitなので、符号をどけた2^15 ~ -2^15の値に正規化)
         max_value = np.abs(noisy_data).max()
         if max_value > 32767:
-            noisy_data = noisy_data * (32767/max_value)
-            adjusted_noise_data = adjusted_noise_data * (32767/max_value)
-            clean_data = clean_data * (32767/max_value)
-
+            noisy_data = noisy_data * (32767 / max_value)
+            adjusted_noise_data = adjusted_noise_data * (32767 / max_value)
+            clean_data = clean_data * (32767 / max_value)
 
         # write noisy data
-        noise_no = noise_file.split("/")[-1].split(".")[0]  # CH0
+        noise_no = noise_file.split("/")[-1].split(".")[0]  # e.g. CH0
 
-        noise_name = noise_file.split("/")[-2]  # OOFICE
-        csj_name = csj_file.split("/")[-1].split(".")[0]  # A01M0056_00000_00000
+        noise_name = noise_file.split("/")[-2]  # e.g. OOFICE
+        csj_name = csj_file.split("/")[-1].split(".")[0]  # e.g. A01M0056_00000_00000
 
         # dtype　16に変換
-        #np.asarray(myArray, dtype = int)
+        # np.asarray(myArray, dtype = int)
         noisy_data = np.asarray(noisy_data.astype(np.int16))
         clean_data = np.asarray(clean_data.astype(np.int16))
         adjusted_noise_data = np.asarray(adjusted_noise_data.astype(np.int16))
-        
-        return_value =[]
+
+        return_value = []
         # <dist_path>/A01M0056_STR.CH0.wav
         utt_name = f"{csj_name}_{noise_name}_{noise_no}_{int(snr)}_SIMU"
         dist_file = f"{self.dist_noisy   }/{utt_name}.wav"
@@ -135,33 +160,34 @@ class NoiseSuperimposition:
 
         # get wav path
         csj_path_list = []
-        csj_path_list = glob.glob(self.splited_wav_dir+"/*.wav", recursive=True) # aaaaaa_1234_1234.wav
+        csj_path_list = glob.glob(
+            self.splited_wav_dir + "/*.wav", recursive=True
+        )  # aaaaaa_1234_1234.wav
         noise_path_list = glob.glob(self.noise_path + "/*.wav", recursive=True)
 
-        print(self.splited_wav_dir+"/*.wav")
+        print(self.splited_wav_dir + "/*.wav")
         print(f"csj list sample:{csj_path_list} csj list mount:{len(csj_path_list)}")
-        print(f"noise list sample: {noise_path_list} noise list mount:{len(noise_path_list)}")
+        print(
+            f"noise list sample: {noise_path_list} noise list mount:{len(noise_path_list)}"
+        )
 
         print("make simulation")
 
-
         wav_list = []
-        # make core simulation
-        # if self.data_type=="train":
-        # snr is random
-        for n in noise_path_list:
-            result = Parallel(n_jobs=self.nj)([delayed(self.superimposition)(c, n, random.random()*20) for c in csj_path_list])
-            wav_list.extend(result)
-            print(f"finished to simulate {n}")
-        # else:
-        #     # test and valid 
-        #     for n in noise_path_list:
-        #         for snr in [5, 0, -5]: # 5db, 0db, -5dbで作成
-        #             result = Parallel(n_jobs=self.nj)([delayed(self.superimposition)(c, n, snr) for c in csj_path_list])
-        #             wav_list.extend(result)
-        #             print(f"finished to simulate {n}")
+        # noise file , snrがランダム
+        result = Parallel(n_jobs=self.nj)(
+            [
+                delayed(self.superimposition)(
+                    c,
+                    random.choice(noise_path_list),
+                    random.randrange(self.snr_range[0], self.snr_range[1]),
+                )
+                for c in tqdm(csj_path_list)
+            ]
+        )
+        wav_list.extend(result)
 
-        wav_lines   = [r[0] for r in wav_list]
+        wav_lines = [r[0] for r in wav_list]
         clean_lines = [r[1] for r in wav_list]
         noise_lines = [r[2] for r in wav_list]
 
@@ -172,15 +198,21 @@ class NoiseSuperimposition:
         with open(f"{self.dist_isolated}/noise1.scp", "w") as f:
             f.writelines(noise_lines)
         print("finish to write scp")
-        
+
 
 def get_args():
     parser = argparse.ArgumentParser(description="Simulate data with parallel process")
     parser.add_argument(
-        "--splited_wav_dir", type=str, required=True, help="path to wav file splited",
+        "--splited_wav_dir",
+        type=str,
+        required=True,
+        help="path to wav file splited",
     )
     parser.add_argument(
-        "--noise_path", type=str, required=True, help="path to noise directory",
+        "--noise_path",
+        type=str,
+        required=True,
+        help="path to noise directory",
     )
     parser.add_argument(
         "--data_type",
@@ -191,10 +223,31 @@ def get_args():
         help="what type of data?, 'train', 'valid', 'test",
     )
     parser.add_argument(
-        "--dist", type=str, required=True, help="path to noisy directory",
+        "--dist",
+        type=str,
+        required=True,
+        help="path to noisy directory",
     )
     parser.add_argument(
-        "--nj", type=int, default=0, required=True, help="number of jobs",
+        "--nj",
+        type=int,
+        default=0,
+        required=True,
+        help="number of jobs",
+    )
+    parser.add_argument(
+        "--max_snr",
+        type=int,
+        required=False,
+        default=20,
+        help="max speech noise ratio. default=20",
+    )
+    parser.add_argument(
+        "--min_snr",
+        type=int,
+        required=False,
+        default=0,
+        help="min speech noise ratio. default=0",
     )
     args = parser.parse_args()
     return args
@@ -202,10 +255,19 @@ def get_args():
 
 if __name__ == "__main__":
     args = get_args()
-    ns = NoiseSuperimposition(args.nj, args.splited_wav_dir, args.noise_path, args.data_type, args.dist)
+    ns = NoiseSuperimposition(
+        args.nj,
+        args.splited_wav_dir,
+        args.noise_path,
+        args.data_type,
+        args.dist,
+        args.max_snr,
+        args.min_snr,
+    )
     ns.run_parallel()
 
-	# python CSJ_simulate_data_patched_parallel.py --splited_wav_dir clean --noise_path noisy/OOFFICE --data_type valid --dist noisy --nj 1
+# python CSJ_simulate_data_patched_parallel.py --splited_wav_dir clean --noise_path noisy/OOFFICE --data_type valid
+# --dist noisy --nj 1
 
-    # ns = NoiseSuperimposition(1, "", "args.noise_path", "train", ".")
-    # ns.superimposition("./A00000_000_000_clean.wav", "./A00000_000_000_noise.CH0.wav", 5)
+# ns = NoiseSuperimposition(1, "", "args.noise_path", "train", ".")
+# ns.superimposition("./A00000_000_000_clean.wav", "./A00000_000_000_noise.CH0.wav", 5)
