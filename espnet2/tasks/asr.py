@@ -154,7 +154,7 @@ predecoder_choices = ClassChoices(
         minitransformer=MiniTransformerBlockPredecoder
     ),
     type_check=AbsPreDecoder,
-    default="minitransformer"
+    default=None
 )
 decoder_choices = ClassChoices(
     "decoder",
