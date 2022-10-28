@@ -566,7 +566,7 @@ def beam_search(
         list: N-best decoding results
 
     """
-    print("uuuuuuuuuuuuuuuuuuuuuuuuuuuuuu")
+    #print("uuuuuuuuuuuuuuuuuuuuuuuuuuuuuu")
     ret = BeamSearch(
         scorers,
         weights,
