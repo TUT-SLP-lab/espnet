@@ -73,6 +73,8 @@ use_lm=true       # Use language model for ASR decoding.
 lm_tag=           # Suffix to the result dir for language model training.
 lm_exp=           # Specify the directory path for LM experiment.
                   # If this option is specified, lm_tag is ignored.
+lm_exp_sub=   #################################################################################
+lm_exp_sub_2=   #################################################################################
 lm_stats_dir=     # Specify the directory path for LM statistics.
 lm_config=        # Config for language model training.
 lm_args=          # Arguments for language model training, e.g., "--max_epoch 10".
@@ -87,6 +89,7 @@ asr_task=asr   # ASR task mode. Either 'asr' or 'asr_transducer'.
 asr_tag=       # Suffix to the result dir for asr model training.
 asr_exp=       # Specify the directory path for ASR experiment.
                # If this option is specified, asr_tag is ignored.
+asr_exp_add=   #################################################
 asr_stats_dir= # Specify the directory path for ASR statistics.
 asr_config=    # Config for asr model training.
 asr_args=      # Arguments for asr model training, e.g., "--max_epoch 10".
@@ -119,6 +122,8 @@ inference_config= # Config for decoding.
 inference_args=   # Arguments for decoding, e.g., "--lm_weight 0.1".
                   # Note that it will overwrite args in inference config.
 inference_lm=valid.loss.ave.pth       # Language model path for decoding.
+inference_lm_sub=valid.loss.ave.pth ##########################################
+inference_lm_sub_2=valid.loss.ave.pth ###############################
 inference_ngram=${ngram_num}gram.bin
 inference_asr_model=valid.acc.ave.pth # ASR model path for decoding.
                                       # e.g.
@@ -1185,6 +1190,10 @@ if ! "${skip_eval}"; then
             else
                 _opts+="--lm_train_config ${lm_exp}/config.yaml "
                 _opts+="--lm_file ${lm_exp}/${inference_lm} "
+                _opts+="--lm_train_add_config ${lm_exp_sub}/config.yaml " ###############
+                _opts+="--lm_file_add ${lm_exp_sub}/${inference_lm_sub} " ################
+                _opts+="--lm_train_add_2_config ${lm_exp_sub_2}/config.yaml " ##############
+                _opts+="--lm_file_add_2 ${lm_exp_sub_2}/${inference_lm_sub_2} " ################
             fi
         fi
         if "${use_ngram}"; then
@@ -1260,6 +1269,8 @@ if ! "${skip_eval}"; then
                     --key_file "${_logdir}"/keys.JOB.scp \
                     --asr_train_config "${asr_exp}"/config.yaml \
                     --asr_model_file "${asr_exp}"/"${inference_asr_model}" \
+                    --asr_train_config_add_acoustic "${asr_exp_add}"/config.yaml \
+                    --asr_model_file_add_acoustic "${asr_exp_add}"/"${inference_asr_model_add_acoustic}" \
                     --output_dir "${_logdir}"/output.JOB \
                     ${_opts} ${inference_args} || { cat $(grep -l -i error "${_logdir}"/asr_inference.*.log) ; exit 1; }
 
