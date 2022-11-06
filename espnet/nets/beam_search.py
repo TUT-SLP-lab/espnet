@@ -448,7 +448,7 @@ class BeamSearch(torch.nn.Module):
 
         # report the best result
         best = nbest_hyps[0]
-        print(best[4]["decoder"].size())
+        # print(best[4]["decoder"].size())
         # print('c_prev', len(best[3]['decoder']['c_prev'][0][0]))
         # print('z_prev', len(best[3]['decoder']['z_prev'][0][0]))
         # print('a_prev', len(best[3]['decoder']['a_prev'][0]))

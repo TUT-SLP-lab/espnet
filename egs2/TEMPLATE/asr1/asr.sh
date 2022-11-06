@@ -125,12 +125,13 @@ inference_lm=valid.loss.ave.pth       # Language model path for decoding.
 inference_lm_sub=valid.loss.ave.pth ##########################################
 inference_lm_sub_2=valid.loss.ave.pth ###############################
 inference_ngram=${ngram_num}gram.bin
-inference_asr_model=valid.acc.ave.pth # ASR model path for decoding.
+inference_asr_model=valid.acc.best.pth # ASR model path for decoding.
                                       # e.g.
                                       # inference_asr_model=train.loss.best.pth
                                       # inference_asr_model=3epoch.pth
                                       # inference_asr_model=valid.acc.best.pth
                                       # inference_asr_model=valid.loss.ave.pth
+inference_asr_model_add_acoustic=valid.acc.best.pth
 download_model= # Download a model from Model Zoo and use it for decoding.
 
 # [Task dependent] Set the datadir name created by local/data.sh
@@ -1275,19 +1276,19 @@ if ! "${skip_eval}"; then
                     ${_opts} ${inference_args} || { cat $(grep -l -i error "${_logdir}"/asr_inference.*.log) ; exit 1; }
 
             # 3. Calculate and report RTF based on decoding logs
-            if [ ${asr_task} == "asr" ] && [ -z ${inference_bin_tag} ]; then
-                log "Calculating RTF & latency... log: '${_logdir}/calculate_rtf.log'"
-                rm -f "${_logdir}"/calculate_rtf.log
-                _fs=$(python3 -c "import humanfriendly as h;print(h.parse_size('${fs}'))")
-                _sample_shift=$(python3 -c "print(1 / ${_fs} * 1000)") # in ms
-                ${_cmd} JOB=1 "${_logdir}"/calculate_rtf.log \
-                    calculate_rtf.py \
-                        --log-dir ${_logdir} \
-                        --log-name "asr_inference" \
-                        --input-shift ${_sample_shift} \
-                        --start-times-marker "speech length" \
-                        --end-times-marker "best hypo"
-            fi
+            # if [ ${asr_task} == "asr" ] && [ -z ${inference_bin_tag} ]; then
+            #     log "Calculating RTF & latency... log: '${_logdir}/calculate_rtf.log'"
+            #     rm -f "${_logdir}"/calculate_rtf.log
+            #     _fs=$(python3 -c "import humanfriendly as h;print(h.parse_size('${fs}'))")
+            #     _sample_shift=$(python3 -c "print(1 / ${_fs} * 1000)") # in ms
+            #     ${_cmd} JOB=1 "${_logdir}"/calculate_rtf.log \
+            #         calculate_rtf.py \
+            #             --log-dir ${_logdir} \
+            #             --log-name "asr_inference" \
+            #             --input-shift ${_sample_shift} \
+            #             --start-times-marker "speech length" \
+            #             --end-times-marker "best hypo"
+            # fi
 
             # 4. Concatenates the output files from each jobs
             for f in token token_int score text; do

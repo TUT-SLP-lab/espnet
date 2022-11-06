@@ -1,22 +1,21 @@
 #!/bin/sh
 
-msw=(0.3 0.5 0.7 0.9 1.1)
 weights=(0.1 0.3 0.5 0.7 0.9 1.1)
-for ms in ${msw[@]}
+for ms in ${weights[@]}
 do
     for aps in ${weights[@]}
     do
         for sps in ${weights[@]}
         do
             ./run.sh \
-            --stage 11 --stop-stage 11 \
-            --asr_exp "exp/asr_rnn_sps" \
-            --asr_exp_add "exp/asr_rnn_aps" \
+            --stage 12 --stop-stage 13 \
+            --asr_exp "exp/asr_asr_transformer_aps" \
+            --asr_exp_add "exp/asr_transformer_sps" \
             --lm_exp "exp/lm_mainiti" \
-            --lm_exp_sub "exp/lm_sps" \
-            --lm_exp_sub_2 "exp/lm_aps" \
-            --inference_tag "ms"$ms"_aps"$aps"_sps"$sps"" \
-            --inference_args "--lm_weight $ms --lm_add_weight $sps --lm_add_2_weight $aps"
+            --lm_exp_sub "exp/lm_aps" \
+            --lm_exp_sub_2 "exp/lm_sps" \
+            --inference_tag "proposed/ms"$ms"_aps"$aps"_sps"$sps"" \
+            --inference_args "--lm_weight $ms --lm_add_weight $aps --lm_add_2_weight $sps"
         done
     done
 done
