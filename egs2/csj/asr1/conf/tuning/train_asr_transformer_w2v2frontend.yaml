@@ -48,7 +48,7 @@ scheduler_conf:
 
 frontend: w2v_frontend
 frontend_conf:
-    w2v_url: "/home/kinouchitakahiro/Documents/research/wav2vec_asr_espnet/espnet/egs2/csj/asr1/exp/w2v_laborotv_20221017/checkpoint_best.pt"
+    w2v_url: "/home/kinouchitakahiro/Documents/research/wav2vec_asr_espnet/espnet/egs2/csj/asr1/exp/w2v_csj_20221112/checkpoint_best.pt"
     output_size: 512
 
 normalize: null

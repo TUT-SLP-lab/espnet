@@ -53,6 +53,12 @@ try:
 except ImportError:
     fairscale = None
 
+try:
+    from torchviz import make_dot
+except ImportError:
+    make_dot = None
+    NeuralNet = None
+
 
 @dataclasses.dataclass
 class TrainerOptions:
@@ -180,14 +186,10 @@ class Trainer:
         reporter = Reporter()
         if trainer_options.use_amp:
             if V(torch.__version__) < V("1.6.0"):
-                raise RuntimeError(
-                    "Require torch>=1.6.0 for  Automatic Mixed Precision"
-                )
+                raise RuntimeError("Require torch>=1.6.0 for  Automatic Mixed Precision")
             if trainer_options.sharded_ddp:
                 if fairscale is None:
-                    raise RuntimeError(
-                        "Requiring fairscale. Do 'pip install fairscale'"
-                    )
+                    raise RuntimeError("Requiring fairscale. Do 'pip install fairscale'")
                 scaler = fairscale.optim.grad_scaler.ShardedGradScaler()
             else:
                 scaler = GradScaler()
@@ -207,9 +209,7 @@ class Trainer:
 
         start_epoch = reporter.get_epoch() + 1
         if start_epoch == trainer_options.max_epoch + 1:
-            logging.warning(
-                f"The training has already reached at max_epoch: {start_epoch}"
-            )
+            logging.warning(f"The training has already reached at max_epoch: {start_epoch}")
 
         if distributed_option.distributed:
             if trainer_options.sharded_ddp:
@@ -227,11 +227,7 @@ class Trainer:
                         # Perform single-Process with multi-GPUs
                         else None
                     ),
-                    output_device=(
-                        torch.cuda.current_device()
-                        if distributed_option.ngpu == 1
-                        else None
-                    ),
+                    output_device=(torch.cuda.current_device() if distributed_option.ngpu == 1 else None),
                     find_unused_parameters=trainer_options.unused_parameters,
                 )
         elif distributed_option.ngpu > 1:
@@ -249,12 +245,8 @@ class Trainer:
         ):
             from torch.utils.tensorboard import SummaryWriter
 
-            train_summary_writer = SummaryWriter(
-                str(output_dir / "tensorboard" / "train")
-            )
-            valid_summary_writer = SummaryWriter(
-                str(output_dir / "tensorboard" / "valid")
-            )
+            train_summary_writer = SummaryWriter(str(output_dir / "tensorboard" / "train"))
+            valid_summary_writer = SummaryWriter(str(output_dir / "tensorboard" / "valid"))
         else:
             train_summary_writer = None
 
@@ -289,6 +281,7 @@ class Trainer:
                     summary_writer=train_summary_writer,
                     options=trainer_options,
                     distributed_option=distributed_option,
+                    get_make_dot=iepoch == start_epoch,
                 )
 
             with reporter.observe("valid") as sub_reporter:
@@ -315,9 +308,7 @@ class Trainer:
             # 2. LR Scheduler step
             for scheduler in schedulers:
                 if isinstance(scheduler, AbsValEpochStepScheduler):
-                    scheduler.step(
-                        reporter.get_value(*trainer_options.val_scheduler_criterion)
-                    )
+                    scheduler.step(reporter.get_value(*trainer_options.val_scheduler_criterion))
                 elif isinstance(scheduler, AbsEpochStepScheduler):
                     scheduler.step()
             if trainer_options.sharded_ddp:
@@ -342,10 +333,7 @@ class Trainer:
                         "model": model.state_dict(),
                         "reporter": reporter.state_dict(),
                         "optimizers": [o.state_dict() for o in optimizers],
-                        "schedulers": [
-                            s.state_dict() if s is not None else None
-                            for s in schedulers
-                        ],
+                        "schedulers": [s.state_dict() if s is not None else None for s in schedulers],
                         "scaler": scaler.state_dict() if scaler is not None else None,
                     },
                     output_dir / "checkpoint.pth",
@@ -375,9 +363,7 @@ class Trainer:
                 if len(_improved) == 0:
                     logging.info("There are no improvements in this epoch")
                 else:
-                    logging.info(
-                        "The best model has been updated: " + ", ".join(_improved)
-                    )
+                    logging.info("The best model has been updated: " + ", ".join(_improved))
 
                 log_model = (
                     trainer_options.wandb_model_log_interval > 0
@@ -441,15 +427,11 @@ class Trainer:
 
             # 8. Check early stopping
             if trainer_options.patience is not None:
-                if reporter.check_early_stopping(
-                    trainer_options.patience, *trainer_options.early_stopping_criterion
-                ):
+                if reporter.check_early_stopping(trainer_options.patience, *trainer_options.early_stopping_criterion):
                     break
 
         else:
-            logging.info(
-                f"The training was finished at {trainer_options.max_epoch} epochs "
-            )
+            logging.info(f"The training was finished at {trainer_options.max_epoch} epochs ")
 
         # Generated n-best averaged model
         if not distributed_option.distributed or distributed_option.dist_rank == 0:
@@ -472,6 +454,7 @@ class Trainer:
         summary_writer,
         options: TrainerOptions,
         distributed_option: DistributedOption,
+        get_make_dot: bool,
     ) -> bool:
         assert check_argument_types()
 
@@ -499,9 +482,7 @@ class Trainer:
         iterator_stop = torch.tensor(0).to("cuda" if ngpu > 0 else "cpu")
 
         start_time = time.perf_counter()
-        for iiter, (utt_id, batch) in enumerate(
-            reporter.measure_iter_time(iterator, "iter_time"), 1
-        ):
+        for iiter, (utt_id, batch) in enumerate(reporter.measure_iter_time(iterator, "iter_time"), 1):
             assert isinstance(batch, dict), type(batch)
 
             if distributed:
@@ -516,11 +497,7 @@ class Trainer:
                 all_steps_are_invalid = False
                 continue
 
-            if (
-                create_graph_in_tensorboard
-                and iiter == 1
-                and summary_writer is not None
-            ):
+            if create_graph_in_tensorboard and iiter == 1 and summary_writer is not None:
                 if distributed:
                     _model = getattr(model, "module")
                 else:
@@ -535,9 +512,7 @@ class Trainer:
                             )
                         else:
                             try:
-                                summary_writer.add_graph(
-                                    _model, _args, use_strict_trace=False
-                                )
+                                summary_writer.add_graph(_model, _args, use_strict_trace=False)
                             except Exception:
                                 logging.warning(
                                     "summary_writer.add_graph() "
@@ -546,15 +521,19 @@ class Trainer:
                                 )
                             del _args
                     else:
-                        logging.warning(
-                            "model.module is not found (This should be a bug.)"
-                        )
+                        logging.warning("model.module is not found (This should be a bug.)")
                 del _model
 
             with autocast(scaler is not None):
                 with reporter.measure_time("forward_time"):
                     retval = model(**batch)
 
+                    if get_make_dot and iiter == 1:
+                        print(retval[0])
+                        image = make_dot(retval[0], params=dict(model.named_parameters()))
+                        image.format = "pdf"
+                        # TODO ディレクトリの指定
+                        image.render(filename="NeuralNet")
                     # Note(kamo):
                     # Supporting two patterns for the returned value from the model
                     #   a. dict type
@@ -566,8 +545,7 @@ class Trainer:
                         if optim_idx is not None and not isinstance(optim_idx, int):
                             if not isinstance(optim_idx, torch.Tensor):
                                 raise RuntimeError(
-                                    "optim_idx must be int or 1dim torch.Tensor, "
-                                    f"but got {type(optim_idx)}"
+                                    "optim_idx must be int or 1dim torch.Tensor, " f"but got {type(optim_idx)}"
                                 )
                             if optim_idx.dim() >= 2:
                                 raise RuntimeError(
@@ -578,8 +556,7 @@ class Trainer:
                                 for v in optim_idx:
                                     if v != optim_idx[0]:
                                         raise RuntimeError(
-                                            "optim_idx must be 1dim tensor "
-                                            "having same values for all entries"
+                                            "optim_idx must be 1dim tensor " "having same values for all entries"
                                         )
                                 optim_idx = optim_idx[0].item()
                             else:
@@ -649,9 +626,7 @@ class Trainer:
                     grad_norm = torch.tensor(grad_norm)
 
                 if not torch.isfinite(grad_norm):
-                    logging.warning(
-                        f"The grad norm is {grad_norm}. Skipping updating the model."
-                    )
+                    logging.warning(f"The grad norm is {grad_norm}. Skipping updating the model.")
 
                     # Must invoke scaler.update() if unscale_() is used in the iteration
                     # to avoid the following error:
@@ -669,9 +644,7 @@ class Trainer:
                 else:
                     all_steps_are_invalid = False
                     with reporter.measure_time("optim_step_time"):
-                        for iopt, (optimizer, scheduler) in enumerate(
-                            zip(optimizers, schedulers)
-                        ):
+                        for iopt, (optimizer, scheduler) in enumerate(zip(optimizers, schedulers)):
                             if optim_idx is not None and iopt != optim_idx:
                                 continue
                             if scaler is not None:
@@ -843,9 +816,7 @@ class Trainer:
                         fig.savefig(p)
 
                     if summary_writer is not None:
-                        summary_writer.add_figure(
-                            f"{k}_{id_}", fig, reporter.get_epoch()
-                        )
+                        summary_writer.add_figure(f"{k}_{id_}", fig, reporter.get_epoch())
 
                     if options.use_wandb:
                         import wandb

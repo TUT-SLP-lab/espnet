@@ -83,7 +83,7 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
 
         if model_conf.encoder_embed_dim != output_size:
             self.output_layer = torch.nn.Sequential(
-                torch.nn.Dropout(dropout_rate),
+                # torch.nn.Dropout(dropout_rate),
                 torch.nn.Linear(model_conf.encoder_embed_dim, output_size),
             )
         else:
@@ -161,4 +161,4 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
 
     def reload_pretrained_parameters(self):
         self.w2v_encoders.load_state_dict(self.pretrained_params)
-        logging.info("Pretrained Wav2Vec model parameters reloaded!")
+        logging.warn("KINOUCHI: Pretrained Wav2Vec model parameters reloaded!")

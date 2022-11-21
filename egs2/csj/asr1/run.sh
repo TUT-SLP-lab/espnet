@@ -5,11 +5,15 @@ set -e
 set -u
 set -o pipefail
 
+. ~/tools/line_notificator.sh
+
 train_set=train_nodup
 valid_set=train_dev
-test_sets="dev_4k dev tedx-jp-10k "
+#test_sets="dev_4k dev tedx-jp-10k "
+# test_sets="eval1 eval2 eval3"
+test_sets="train_dev"
 
-asr_config=conf/tuning/train_asr_transformer_wav2vec.yaml
+asr_config=conf/tuning/train_asr_transformer_w2v2frontend.yaml
 inference_config=conf/decode_asr.yaml
 lm_config=conf/train_lm.yaml
 
@@ -17,23 +21,26 @@ lm_config=conf/train_lm.yaml
 # (train_set will be "${train_set}_sp" if speed_perturb_factors is specified)
 speed_perturb_factors="0.9 1.0 1.1"
 
+
+line_notify "klab start"
 # NOTE: The default settings require 4 GPUs with 32 GB memory
 ./asr.sh \
-    --asr_args "--use_wandb true --wandb_project wav2vec_transformer_predecoder" \
-    --pretrained_model "exp/asr_train_asr_transformer_raw_jp_char_sp/31epoch.pth" \
-    --ignore_init_mismatch true \
+    --asr_args "--use_wandb true --wandb_project wav2vec2_csj_frontend" \
     --feats_normalize "" \
     --stage 11 \
     --ngpu 1 \
     --lang jp \
     --token_type char \
     --feats_type raw \
-    --inference_asr_model 17epoch.pth \
     --asr_config "${asr_config}" \
+    --gpu_inference true \
     --inference_config "${inference_config}" \
+    --inference_asr_model "65epoch.pth" \
     --lm_config "${lm_config}" \
     --train_set "${train_set}" \
     --valid_set "${valid_set}" \
     --test_sets "${test_sets}" \
     --speed_perturb_factors "${speed_perturb_factors}" \
-    --lm_train_text "data/train_nodev/text" "$@"
+    --lm_train_text "data/train_nodev/text" "$@" || line_notify "Klab failed"
+
+line_notify "klab end"

@@ -218,6 +218,7 @@ class Speech2Text:
             for scorer in scorers.values():
                 if isinstance(scorer, torch.nn.Module):
                     scorer.to(device=device, dtype=getattr(torch, dtype)).eval()
+            logging.info(f"Encoder : {asr_model.encoder}")
             logging.info(f"Beam_search: {beam_search}")
             logging.info(f"Decoding device={device}, dtype={dtype}")
 

@@ -1,7 +1,7 @@
 # This configuration requires 4 GPUs with 32GB memory
 batch_type: numel
-batch_bins: 3750000
-accum_grad: 24
+batch_bins: 11250000
+accum_grad: 8
 max_epoch: 100
 patience: none
 # The initialization method for model parameters
@@ -21,18 +21,18 @@ encoder_conf:
     output_size: 512
     use_transformer_layer: false
     transformer_layer_num: 2
-    w2v_url: ./exp/w2v_laborotv_20221017/checkpoint_best.pt
+    w2v_url: ./exp/w2v_csj_20221112/checkpoint_best.pt
 
-predecoder: minitransformer
-predecoder_conf:
-    output_size: 512
-    transformer_layer_num: 1
-    normalize_before: true
-    normalize_after: true
-    dropout_rate: 0.1
-    attention_heads: 4
-    attention_dropout_rate: 0.0
-    linear_units: 2048
+    # predecoder: minitransformer
+    # predecoder_conf:
+    #     output_size: 512
+    #     transformer_layer_num: 1
+    #     normalize_before: true
+    #     normalize_after: true
+    #     dropout_rate: 0.1
+    #     attention_heads: 4
+    #     attention_dropout_rate: 0.0
+    #     linear_units: 2048
 
 # decoder related
 decoder: transformer
@@ -47,7 +47,7 @@ decoder_conf:
 
 # hybrid CTC/attention
 model_conf:
-    ctc_weight: 0.3
+    ctc_weight: 0
     lsm_weight: 0.1
     length_normalized_loss: false
 
