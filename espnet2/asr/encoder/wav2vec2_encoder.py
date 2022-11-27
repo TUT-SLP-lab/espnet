@@ -8,6 +8,7 @@ from typing import Optional, Tuple
 
 import torch
 from typeguard import check_argument_types
+import contextlib
 
 from espnet2.asr.encoder.abs_encoder import AbsEncoder
 from espnet.nets.pytorch_backend.nets_utils import make_pad_mask
@@ -41,6 +42,7 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
         use_transformer_layer: bool,
         transformer_layer_num: int = 2,
         output_size: int = 512,
+        apply_mask: bool = False,
         normalize_before: bool = False,
         normalize_after: bool = False,
         freeze_finetune_updates: int = 0,
@@ -75,6 +77,7 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
         self.w2v_encoders = model
 
         self.pretrained_params = copy.deepcopy(model.state_dict())
+        self.apply_mask = apply_mask
 
         self.normalize_before = normalize_before
         self.normalize_after = normalize_after
@@ -134,17 +137,31 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
             position embedded tensor and mask
         """
         masks = make_pad_mask(ilens).to(xs_pad.device)
+        
+        ft = self.freeze_finetune_updates <= self.num_updates
+        if self.num_updates <= self.freeze_finetune_updates:
+            self.num_updates += 1
+        elif ft and self.num_updates == self.freeze_finetune_updates + 1:
+            self.num_updates += 1
+            logging.info("Start fine-tuning wav2vec parameters!")
 
-        with torch.no_grad():  # if not ft else contextlib.nullcontext():
-            enc_outputs = self.w2v_encoders(xs_pad, masks, features_only=True)
-        xs_pad = enc_outputs["x"]  # (B,T,C),
-        bs = xs_pad.shape[0]
-        if enc_outputs["padding_mask"] is not None:
-            masks = enc_outputs["padding_mask"]  # (B, T)
-            olens = (~masks).sum(dim=1)  # (B)
-        else:
-            olens = torch.IntTensor([xs_pad.shape[1]]).repeat(bs).to(xs_pad.device)
-            masks = make_pad_mask(olens).to(xs_pad.device)
+        with torch.no_grad() if not ft else contextlib.ExitStack():
+            enc_outputs = self.w2v_encoders(
+                    xs_pad, 
+                    masks, 
+                    mask= self.apply_mask and self.training, 
+                    features_only=True
+                )
+
+            xs_pad = enc_outputs["x"]  # (B,T,C),
+            bs = xs_pad.shape[0]
+            if enc_outputs["padding_mask"] is not None:
+                masks = enc_outputs["padding_mask"]  # (B, T)
+                olens = (~masks).sum(dim=1)  # (B)
+            else:
+                olens = torch.IntTensor([xs_pad.shape[1]]).repeat(bs).to(xs_pad.device)
+                masks = make_pad_mask(olens).to(xs_pad.device)
+
         # Self attention
         if self.transformer_layers is not None:
             masks = masks.view(masks.shape[0], 1, masks.shape[1])

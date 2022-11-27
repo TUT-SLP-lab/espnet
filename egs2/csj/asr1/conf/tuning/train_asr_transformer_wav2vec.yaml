@@ -1,7 +1,7 @@
 # This configuration requires 4 GPUs with 32GB memory
 batch_type: numel
-batch_bins: 11250000
-accum_grad: 8
+batch_bins: 45000000
+accum_grad: 2
 max_epoch: 100
 patience: none
 # The initialization method for model parameters
@@ -11,16 +11,21 @@ best_model_criterion:
     - acc
     - max
 keep_nbest_models: 10
+unused_parameters: true
 
 # network architecture
+#freeze_param: ["encoder.w2v_encoders"]
 # freeze_param: ["decoder"]
 
 input_size: 2048
 encoder: wav2vec2
 encoder_conf:
-    output_size: 512
+    output_size: 768
     use_transformer_layer: false
     transformer_layer_num: 2
+    normalize_after: true
+    freeze_finetune_updates: 1000000
+    apply_mask: false
     w2v_url: ./exp/w2v_csj_20221112/checkpoint_best.pt
 
     # predecoder: minitransformer

@@ -53,13 +53,6 @@ try:
 except ImportError:
     fairscale = None
 
-try:
-    from torchviz import make_dot
-except ImportError:
-    make_dot = None
-    NeuralNet = None
-
-
 @dataclasses.dataclass
 class TrainerOptions:
     ngpu: int
@@ -281,7 +274,6 @@ class Trainer:
                     summary_writer=train_summary_writer,
                     options=trainer_options,
                     distributed_option=distributed_option,
-                    get_make_dot=iepoch == start_epoch,
                 )
 
             with reporter.observe("valid") as sub_reporter:
@@ -454,7 +446,6 @@ class Trainer:
         summary_writer,
         options: TrainerOptions,
         distributed_option: DistributedOption,
-        get_make_dot: bool,
     ) -> bool:
         assert check_argument_types()
 
@@ -528,12 +519,6 @@ class Trainer:
                 with reporter.measure_time("forward_time"):
                     retval = model(**batch)
 
-                    if get_make_dot and iiter == 1:
-                        print(retval[0])
-                        image = make_dot(retval[0], params=dict(model.named_parameters()))
-                        image.format = "pdf"
-                        # TODO ディレクトリの指定
-                        image.render(filename="NeuralNet")
                     # Note(kamo):
                     # Supporting two patterns for the returned value from the model
                     #   a. dict type

@@ -1,7 +1,7 @@
 # This configuration requires 4 GPUs with 32GB memory
 batch_type: numel
-batch_bins: 2812500
-accum_grad: 32
+batch_bins: 150000000
+accum_grad: 6
 max_epoch: 100
 patience: none
 # The initialization method for model parameters
@@ -11,6 +11,7 @@ best_model_criterion:
     - acc
     - max
 keep_nbest_models: 10
+unused_parameters: true # needed for multi gpu case 
 
 encoder: transformer
 encoder_conf:

@@ -7,13 +7,15 @@ set -o pipefail
 
 . ~/tools/line_notificator.sh
 
+project_name=wav2vec2_transformer_decoder_new2
+
 train_set=train_nodup
 valid_set=train_dev
 #test_sets="dev_4k dev tedx-jp-10k "
-# test_sets="eval1 eval2 eval3"
-test_sets="train_dev"
+test_sets="eval1 eval2 eval3"
+# test_sets="train_dev"
 
-asr_config=conf/tuning/train_asr_transformer_w2v2frontend.yaml
+asr_config=conf/tuning/train_asr_transformer_wav2vec.yaml
 inference_config=conf/decode_asr.yaml
 lm_config=conf/train_lm.yaml
 
@@ -22,13 +24,13 @@ lm_config=conf/train_lm.yaml
 speed_perturb_factors="0.9 1.0 1.1"
 
 
-line_notify "klab start"
+line_notify "$project_name start"
 # NOTE: The default settings require 4 GPUs with 32 GB memory
 ./asr.sh \
-    --asr_args "--use_wandb true --wandb_project wav2vec2_csj_frontend" \
+    --asr_args "--use_wandb true --wandb_project $project_name" \
     --feats_normalize "" \
     --stage 11 \
-    --ngpu 1 \
+    --ngpu 4 \
     --lang jp \
     --token_type char \
     --feats_type raw \
@@ -41,6 +43,6 @@ line_notify "klab start"
     --valid_set "${valid_set}" \
     --test_sets "${test_sets}" \
     --speed_perturb_factors "${speed_perturb_factors}" \
-    --lm_train_text "data/train_nodev/text" "$@" || line_notify "Klab failed"
+    --lm_train_text "data/train_nodev/text" "$@" || line_notify "$project_name failed"
 
-line_notify "klab end"
+line_notify "$project_name end"
