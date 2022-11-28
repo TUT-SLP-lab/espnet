@@ -156,9 +156,9 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="../../index.html">Module code</a> &raquo;</li>
-      <li>espnet2.torch_utils.initialize</li>
+      <li><a href="../../../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">espnet2.torch_utils.initialize</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -288,7 +288,11 @@
         <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;postencoder&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span>
             <span class="n">model</span><span class="o">.</span><span class="n">postencoder</span><span class="p">,</span> <span class="s2">&quot;reload_pretrained_parameters&quot;</span><span class="p">,</span> <span class="kc">None</span>
         <span class="p">):</span>
-            <span class="n">model</span><span class="o">.</span><span class="n">postencoder</span><span class="o">.</span><span class="n">reload_pretrained_parameters</span><span class="p">()</span></div>
+            <span class="n">model</span><span class="o">.</span><span class="n">postencoder</span><span class="o">.</span><span class="n">reload_pretrained_parameters</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;decoder&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">decoder</span><span class="p">,</span> <span class="s2">&quot;reload_pretrained_parameters&quot;</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="p">):</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">decoder</span><span class="o">.</span><span class="n">reload_pretrained_parameters</span><span class="p">()</span></div>
 </pre></div>
 
            </div>
