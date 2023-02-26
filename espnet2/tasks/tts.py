@@ -103,7 +103,7 @@ tts_choices = ClassChoices(
 
 class TTSTask(AbsTask):
     # If you need more than one optimizers, change this value
-    num_optimizers: int = 1
+    num_optimizers: int = 2
 
     # Add variable objects configurations
     class_choices_list = [

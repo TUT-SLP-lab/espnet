@@ -5,16 +5,16 @@ set -e
 set -u
 set -o pipefail
 
-project_name="conformer_wav2vec2_large_frontend"
+project_name="transformer_wav2vec2_csj_large_0126"
 
 . ~/tools/line_notificator.sh
 
 train_set=train_nodup
 valid_set=train_dev
-test_sets="eval1 eval2 eval3 dev tedx-jp-10k"
+#test_sets="eval1 eval2 eval3 "
+test_sets="dev tedx-jp-10k eval1 eval2 eval3"
 
-#asr_config=conf/tuning/train_asr_transformer3_w2v_large_lv60_960h_finetuning_last_1layer.yaml
-asr_config=conf/tuning/train_asr_conformer7_wavlm_large.yaml
+asr_config=conf/tuning/train_asr_transformer3_w2v_large_lv60_960h_finetuning_last_1layer.yaml
 inference_config=conf/decode_asr.yaml
 lm_config=conf/train_lm.yaml
 
@@ -28,15 +28,16 @@ line_notify "start $project_name"
     --asr_args "--use_wandb true --wandb_project $project_name" \
     --feats_normalize "" \
     --ngpu 1 \
-    --stage 12 \
+    --stage 11 \
     --lang jp \
     --token_type char \
     --feats_type raw \
     --use_lm false \
     --asr_config "${asr_config}" \
     --inference_config "${inference_config}" \
-    --inference_asr_model "valid.acc.best.pth" \
-    --inference_nj 16 \
+    --inference_asr_model "78epoch.pth" \
+    --gpu_inference true \
+    --inference_nj 32 \
     --lm_config "${lm_config}" \
     --train_set "${train_set}" \
     --valid_set "${valid_set}" \

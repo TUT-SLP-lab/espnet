@@ -34,7 +34,7 @@ ngpu=1               # The number of gpus ("0" uses cpu, otherwise use gpu).
 num_nodes=1          # The number of nodes.
 nj=32                # The number of parallel jobs.
 inference_nj=32      # The number of parallel jobs in decoding.
-gpu_inference=false  # Whether to perform gpu decoding.
+gpu_inference=true  # Whether to perform gpu decoding.
 dumpdir=dump         # Directory to dump features.
 expdir=exp           # Directory to save experiments.
 python=python3       # Specify python to execute espnet commands.
@@ -94,7 +94,7 @@ asr_args=      # Arguments for asr model training, e.g., "--max_epoch 10".
                # Note that it will overwrite args in asr config.
 pretrained_model=              # Pretrained model to load
 ignore_init_mismatch=false      # Ignore initial mismatch
-feats_normalize=global_mvn # Normalizaton layer type.
+feats_normalize= # Normalizaton layer type.
 num_splits_asr=1           # Number of splitting for lm corpus.
 
 # Upload model related
@@ -1282,19 +1282,19 @@ if ! "${skip_eval}"; then
                     ${_opts} ${inference_args} || { cat $(grep -l -i error "${_logdir}"/asr_inference.*.log) ; exit 1; }
 
             # 3. Calculate and report RTF based on decoding logs
-            if [ ${asr_task} == "asr" ] && [ -z ${inference_bin_tag} ]; then
-                log "Calculating RTF & latency... log: '${_logdir}/calculate_rtf.log'"
-                rm -f "${_logdir}"/calculate_rtf.log
-                _fs=$(python3 -c "import humanfriendly as h;print(h.parse_size('${fs}'))")
-                _sample_shift=$(python3 -c "print(1 / ${_fs} * 1000)") # in ms
-                ${_cmd} JOB=1 "${_logdir}"/calculate_rtf.log \
-                    calculate_rtf.py \
-                        --log-dir ${_logdir} \
-                        --log-name "asr_inference" \
-                        --input-shift ${_sample_shift} \
-                        --start-times-marker "speech length" \
-                        --end-times-marker "best hypo"
-            fi
+            # if [ ${asr_task} == "asr" ] && [ -z ${inference_bin_tag} ]; then
+            #     log "Calculating RTF & latency... log: '${_logdir}/calculate_rtf.log'"
+            #     rm -f "${_logdir}"/calculate_rtf.log
+            #     _fs=$(python3 -c "import humanfriendly as h;print(h.parse_size('${fs}'))")
+            #     _sample_shift=$(python3 -c "print(1 / ${_fs} * 1000)") # in ms
+            #     ${_cmd} JOB=1 "${_logdir}"/calculate_rtf.log \
+            #         calculate_rtf.py \
+            #             --log-dir ${_logdir} \
+            #             --log-name "asr_inference" \
+            #             --input-shift ${_sample_shift} \
+            #             --start-times-marker "speech length" \
+            #             --end-times-marker "best hypo"
+            # fi
 
             # 4. Concatenates the output files from each jobs
             for f in token token_int score text; do
@@ -1319,7 +1319,7 @@ if ! "${skip_eval}"; then
             _data="${data_feats}/${dset}"
             _dir="${asr_exp}/${inference_tag}/${dset}"
 
-            for _type in cer wer ter; do
+            for _type in cer; do #wer ter; do
                 [ "${_type}" = ter ] && [ ! -f "${bpemodel}" ] && continue
 
                 _scoredir="${_dir}/score_${_type}"

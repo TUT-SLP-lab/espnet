@@ -5,16 +5,16 @@ set -e
 set -u
 set -o pipefail
 
-project_name="conformer_wav2vec2_large_frontend"
+project_name="transformer_wav2vec2_large_LV_libri960"
 
 . ~/tools/line_notificator.sh
 
 train_set=train_nodup
 valid_set=train_dev
-test_sets="eval1 eval2 eval3 dev tedx-jp-10k"
+test_sets="eval1 eval2 eval3"
+test_sets="dev" #"dev_4k tedx-jp-10k"
 
-#asr_config=conf/tuning/train_asr_transformer3_w2v_large_lv60_960h_finetuning_last_1layer.yaml
-asr_config=conf/tuning/train_asr_conformer7_wavlm_large.yaml
+asr_config=conf/tuning/train_asr_transformer3_w2v_large_lv60_960h_finetuning_last_1layer.yaml
 inference_config=conf/decode_asr.yaml
 lm_config=conf/train_lm.yaml
 
@@ -34,8 +34,9 @@ line_notify "start $project_name"
     --feats_type raw \
     --use_lm false \
     --asr_config "${asr_config}" \
+    --gpu_inference false \
     --inference_config "${inference_config}" \
-    --inference_asr_model "valid.acc.best.pth" \
+    --inference_asr_model "19epoch.pth" \
     --inference_nj 16 \
     --lm_config "${lm_config}" \
     --train_set "${train_set}" \

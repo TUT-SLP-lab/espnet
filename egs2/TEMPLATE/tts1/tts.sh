@@ -85,7 +85,7 @@ tts_stats_dir=""   # Specify the directory path for statistics. If empty, automa
 num_splits=1       # Number of splitting for tts corpus.
 teacher_dumpdir="" # Directory of teacher outputs (needed if tts=fastspeech).
 write_collected_feats=false # Whether to dump features in stats collection.
-tts_task=tts                # TTS task (tts or gan_tts).
+tts_task=gan_tts                # TTS task (tts or gan_tts).
 
 # Decoding related
 inference_config="" # Config for decoding.

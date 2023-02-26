@@ -1308,7 +1308,6 @@ class AbsTask(ABC):
                     # but we only logs aggregated data,
                     # so it's enough to perform on rank0 node.
                     args.use_wandb = False
-
             # Don't give args to trainer.run() directly!!!
             # Instead of it, define "Options" object and build here.
             trainer_options = cls.trainer.build_options(args)

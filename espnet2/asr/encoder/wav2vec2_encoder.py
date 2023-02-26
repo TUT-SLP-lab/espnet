@@ -34,6 +34,7 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
         self,
         input_size: int,
         w2v_url: str,
+        sub_w2v_url: str=None,
         w2v_dir_path: str = "./",
         output_size: int = 256,
         normalize_before: bool = False,
@@ -52,17 +53,33 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
                     "Please install FairSeq: cd ${MAIN_ROOT}/tools && make fairseq.done"
                 )
                 raise e
-
-        self.w2v_model_path = download_w2v(w2v_url, w2v_dir_path)
+        if "http" in w2v_url:
+            self.w2v_model_path = download_w2v(w2v_url, w2v_dir_path)
+        else:
+            self.w2v_model_path = w2v_url
+        logging.info(f"Load model {self.w2v_model_path}")
 
         self._output_size = output_size
 
-        models, _, _ = fairseq.checkpoint_utils.load_model_ensemble_and_task(
+        # define task
+        from fairseq.tasks.audio_pretraining import AudioPretrainingConfig, AudioPretrainingTask
+        task_conf = AudioPretrainingConfig(
+                _name="audio_pretraining",
+                data= "",
+                max_sample_size= 400000,
+                min_sample_size= 16000,
+                normalize= True,
+        )
+        task = AudioPretrainingTask(task_conf)
+
+
+        models, _, __ = fairseq.checkpoint_utils.load_model_ensemble_and_task(
             [self.w2v_model_path],
             arg_overrides={"data": w2v_dir_path},
+            task=task
         )
+        logging.info(f"config: {_}")
         model = models[0]
-
         if not isinstance(model, Wav2Vec2Model):
             try:
                 model = model.w2v_encoder.w2v_model
@@ -72,11 +89,30 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
                     "'Wav2Vec2Model, Wav2VecCTC' classes, etc."
                 )
                 raise e
+       
+
+        if sub_w2v_url is not None:
+            sub_models, _, _ = fairseq.checkpoint_utils.load_model_ensemble_and_task([sub_w2v_url], arg_overrides={"data": w2v_dir_path})
+
+            sub_model = sub_models[0]
+
+            if not isinstance(sub_model, Wav2Vec2Model):
+                try:
+                    sub_model = sub_model.w2v_encoder.w2v_model
+                except Exception as e:
+                    print(
+                        "Error: pretrained models should be within: "
+                        "'Wav2Vec2Model, Wav2VecCTC' classes, etc."
+                    )
+                    raise e
+
+            self.sub_pretrained_params = copy.deepcopy(sub_model.state_dict())
+        else:
+            self.sub_pretrained_params = None
 
         self.encoders = model
 
         self.pretrained_params = copy.deepcopy(model.state_dict())
-
         self.normalize_before = normalize_before
         if self.normalize_before:
             self.after_norm = LayerNorm(output_size)
@@ -144,9 +180,12 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
         return xs_pad, olens, None
 
     def reload_pretrained_parameters(self):
-        self.encoders.load_state_dict(self.pretrained_params)
-        logging.info("Pretrained Wav2Vec model parameters reloaded!")
-
+        if self.sub_pretrained_params is None:
+            self.encoders.load_state_dict(self.pretrained_params)
+            logging.info("Pretrained Wav2Vec model parameters reloaded!")
+        else:
+            self.encoders.load_state_dict(self.sub_pretrained_params,strict=False)
+            logging.info("Sub pretrained wav2vec model parameters reloaded!")
 
 def download_w2v(model_url, dir_path):
     os.makedirs(dir_path, exist_ok=True)
@@ -166,3 +205,4 @@ def download_w2v(model_url, dir_path):
             logging.info(f"Wav2Vec model {model_path} already exists.")
 
     return model_path
+
