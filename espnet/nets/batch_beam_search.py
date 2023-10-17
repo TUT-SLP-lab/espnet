@@ -217,8 +217,14 @@ class BatchBeamSearch(BeamSearch):
             n_batch, self.n_vocab, dtype=x.dtype, device=x.device
         )
         scores, states = self.score_full(running_hyps, x.expand(n_batch, *x.shape))
-        for k in self.full_scorers:
-            weighted_scores += self.weights[k] * scores[k]
+        if "decoder" in scores:
+            weighted_scores += self.weights["decoder"]* scores["decoder"]
+        if "ctc" in scores:
+            weighted_scores += self.weights["ctc"] * scores["ctc"]
+        if "sub_lm" in scores:
+            weighted_scores -= self.weights["sub_lm"]*scores["sub_lm"]
+        if "add_lm" in scores:
+            weighted_scores += self.weights["add_lm"] * scores["add_lm"]
         # partial scoring
         if self.do_pre_beam:
             pre_beam_scores = (

@@ -136,15 +136,15 @@ class Trainer:
             map_location=f"cuda:{torch.cuda.current_device()}" if ngpu > 0 else "cpu",
         )
         model.load_state_dict(states["model"])
-        logging.info("KINOUCHI: Debug reload w2v parameters")
-        model.encoder.reload_pretrained_parameters()
+        #logging.info("KINOUCHI: Debug reload w2v parameters")
+        #model.encoder.reload_pretrained_parameters()
         
         reporter.load_state_dict(states["reporter"])
-        #for optimizer, state in zip(optimizers, states["optimizers"]):
-        #    optimizer.load_state_dict(state)
-        #for scheduler, state in zip(schedulers, states["schedulers"]):
-        #    if scheduler is not None:
-        #        scheduler.load_state_dict(state)
+        for optimizer, state in zip(optimizers, states["optimizers"]):
+            optimizer.load_state_dict(state)
+        for scheduler, state in zip(schedulers, states["schedulers"]):
+            if scheduler is not None:
+                scheduler.load_state_dict(state)
         if scaler is not None:
             if states["scaler"] is None:
                 logging.warning("scaler state is not found")

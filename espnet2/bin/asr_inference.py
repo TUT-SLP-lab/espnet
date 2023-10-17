@@ -61,8 +61,10 @@ class Speech2Text:
         asr_train_config: Union[Path, str] = None,
         asr_model_file: Union[Path, str] = None,
         transducer_conf: dict = None,
-        lm_train_config: Union[Path, str] = None,
-        lm_file: Union[Path, str] = None,
+        add_lm_train_config: Union[Path, str] = None,
+        sub_lm_train_config: Union[Path, str] = None,
+        add_lm_file: Union[Path, str] = None,
+        sub_lm_file: Union[Path, str] = None,
         ngram_scorer: str = "full",
         ngram_file: Union[Path, str] = None,
         token_type: str = None,
@@ -74,7 +76,8 @@ class Speech2Text:
         dtype: str = "float32",
         beam_size: int = 20,
         ctc_weight: float = 0.5,
-        lm_weight: float = 1.0,
+        add_lm_weight: float = 1.0,
+        sub_lm_weight: float = 1.0,
         ngram_weight: float = 0.9,
         penalty: float = 0.0,
         nbest: int = 1,
@@ -140,19 +143,33 @@ class Speech2Text:
         )
 
         # 2. Build Language model
-        if lm_train_config is not None:
-            lm, lm_train_args = LMTask.build_model_from_file(
-                lm_train_config, lm_file, device
+        if add_lm_train_config is not None:
+            add_lm, add_lm_train_args = LMTask.build_model_from_file(
+                add_lm_train_config, add_lm_file, device
             )
 
             if quantize_lm:
                 logging.info("Use quantized lm for decoding.")
 
-                lm = torch.quantization.quantize_dynamic(
-                    lm, qconfig_spec=quantize_modules, dtype=quantize_dtype
+                add_lm = torch.quantization.quantize_dynamic(
+                    add_lm, qconfig_spec=quantize_modules, dtype=quantize_dtype
                 )
 
-            scorers["lm"] = lm.lm
+            scorers["add_lm"] = add_lm.lm
+        
+        if sub_lm_train_config is not None:
+            sub_lm, sub_lm_train_args = LMTask.build_model_from_file(
+                sub_lm_train_config, sub_lm_file, device
+            )
+
+            if quantize_lm:
+                logging.info("Use quantized lm for decoding.")
+
+                sub_lm = torch.quantization.quantize_dynamic(
+                    sub_lm, qconfig_spec=quantize_modules, dtype=quantize_dtype
+                )
+
+            scorers["sub_lm"] = sub_lm.lm
 
         # 3. Build ngram model
         if ngram_file is not None:
@@ -225,7 +242,8 @@ class Speech2Text:
             weights = dict(
                 decoder=1.0 - ctc_weight,
                 ctc=ctc_weight,
-                lm=lm_weight,
+                add_lm=add_lm_weight,
+                sub_lm=sub_lm_weight,
                 ngram=ngram_weight,
                 length_bonus=penalty,
             )
@@ -477,7 +495,8 @@ def inference(
     ngpu: int,
     seed: int,
     ctc_weight: float,
-    lm_weight: float,
+    add_lm_weight: float,
+    sub_lm_weight: float,
     ngram_weight: float,
     penalty: float,
     nbest: int,
@@ -487,8 +506,10 @@ def inference(
     key_file: Optional[str],
     asr_train_config: Optional[str],
     asr_model_file: Optional[str],
-    lm_train_config: Optional[str],
-    lm_file: Optional[str],
+    add_lm_train_config: Optional[str],
+    sub_lm_train_config: Optional[str],
+    add_lm_file: Optional[str],
+    sub_lm_file: Optional[str],
     word_lm_train_config: Optional[str],
     word_lm_file: Optional[str],
     ngram_file: Optional[str],
@@ -532,8 +553,10 @@ def inference(
         asr_train_config=asr_train_config,
         asr_model_file=asr_model_file,
         transducer_conf=transducer_conf,
-        lm_train_config=lm_train_config,
-        lm_file=lm_file,
+        add_lm_train_config=add_lm_train_config,
+        sub_lm_train_config=sub_lm_train_config,
+        add_lm_file=add_lm_file,
+        sub_lm_file=sub_lm_file,
         ngram_file=ngram_file,
         token_type=token_type,
         bpemodel=bpemodel,
@@ -543,7 +566,8 @@ def inference(
         dtype=dtype,
         beam_size=beam_size,
         ctc_weight=ctc_weight,
-        lm_weight=lm_weight,
+        add_lm_weight=add_lm_weight,
+        sub_lm_weight=sub_lm_weight,
         ngram_weight=ngram_weight,
         penalty=penalty,
         nbest=nbest,
@@ -691,12 +715,22 @@ def get_parser():
         help="ASR model parameter file",
     )
     group.add_argument(
-        "--lm_train_config",
+        "--add_lm_train_config",
         type=str,
         help="LM training configuration",
     )
     group.add_argument(
-        "--lm_file",
+        "--sub_lm_train_config",
+        type=str,
+        help="LM training configuration",
+    )
+    group.add_argument(
+        "--add_lm_file",
+        type=str,
+        help="LM parameter file",
+    )
+    group.add_argument(
+        "--sub_lm_file",
         type=str,
         help="LM parameter file",
     )
@@ -792,7 +826,8 @@ def get_parser():
         default=0.5,
         help="CTC weight in joint decoding",
     )
-    group.add_argument("--lm_weight", type=float, default=1.0, help="RNNLM weight")
+    group.add_argument("--add_lm_weight", type=float, default=1.0, help="RNNLM weight")
+    group.add_argument("--sub_lm_weight", type=float, default=1.0, help="RNNLM weight")
     group.add_argument("--ngram_weight", type=float, default=0.9, help="ngram weight")
     group.add_argument("--streaming", type=str2bool, default=False)
     group.add_argument("--hugging_face_decoder", type=str2bool, default=False)
