@@ -72,7 +72,8 @@ ngram_num=3
 # Language model related
 use_lm=true       # Use language model for ASR decoding.
 lm_tag=           # Suffix to the result dir for language model training.
-lm_exp=           # Specify the directory path for LM experiment.
+add_lm_exp=           # Specify the directory path for LM experiment.
+sub_lm_exp=           # Specify the directory path for LM experiment.
                   # If this option is specified, lm_tag is ignored.
 lm_stats_dir=     # Specify the directory path for LM statistics.
 lm_config=        # Config for language model training.
@@ -193,8 +194,10 @@ Options:
 
     # Language model related
     --lm_tag          # Suffix to the result dir for language model training (default="${lm_tag}").
-    --lm_exp          # Specify the directory path for LM experiment.
-                      # If this option is specified, lm_tag is ignored (default="${lm_exp}").
+    --add_lm_exp      # Specify the directory path for LM experiment.
+                      # If this option is specified, lm_tag is ignored (default="${add_lm_exp}").
+    --sub_lm_exp      # Specify the directory path for LM experiment.
+                      # If this option is specified, lm_tag is ignored (default="${sub_lm_exp}").
     --lm_stats_dir    # Specify the directory path for LM statistics (default="${lm_stats_dir}").
     --lm_config       # Config for language model training (default="${lm_config}").
     --lm_args         # Arguments for language model training (default="${lm_args}").
@@ -416,7 +419,7 @@ fi
 if [ -z "${asr_exp}" ]; then
     asr_exp="${expdir}/asr_${asr_tag}"
 fi
-if [ -z "${lm_exp}" ]; then
+if [ -z "${add_lm_exp}" ]; then
     lm_exp="${expdir}/lm_${lm_tag}"
 fi
 if [ -z "${ngram_exp}" ]; then
@@ -1201,8 +1204,10 @@ if ! "${skip_eval}"; then
                 _opts+="--word_lm_train_config ${lm_exp}/config.yaml "
                 _opts+="--word_lm_file ${lm_exp}/${inference_lm} "
             else
-                _opts+="--lm_train_config ${lm_exp}/config.yaml "
-                _opts+="--lm_file ${lm_exp}/${inference_lm} "
+                _opts+="--sub_lm_train_config ${sub_lm_exp}/config.yaml "
+                _opts+="--add_lm_train_config ${add_lm_exp}/config.yaml "
+                _opts+="--sub_lm_file ${sub_lm_exp}/${inference_lm} "
+                _opts+="--add_lm_file ${add_lm_exp}/${inference_lm} "
             fi
         fi
         if "${use_ngram}"; then

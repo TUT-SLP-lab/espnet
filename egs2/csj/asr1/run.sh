@@ -25,23 +25,23 @@ speed_perturb_factors="0.9 1.0 1.1"
 line_notify "start $project_name"
 # NOTE: The default settings require 4 GPUs with 32 GB memory
 ./asr.sh \
-    --asr_args "--use_wandb true --wandb_project $project_name" \
-    --feats_normalize "" \
-    --ngpu 1 \
-    --stage 12 \
-    --lang jp \
-    --token_type char \
-    --feats_type raw \
-    --use_lm false \
-    --asr_config "${asr_config}" \
-    --inference_config "${inference_config}" \
-    --inference_asr_model "valid.acc.best.pth" \
-    --inference_nj 16 \
-    --lm_config "${lm_config}" \
-    --train_set "${train_set}" \
-    --valid_set "${valid_set}" \
-    --test_sets "${test_sets}" \
-    --speed_perturb_factors "${speed_perturb_factors}" \
-    --lm_train_text "data/train_nodev/text" "$@"
+	--asr_args "--use_wandb true --wandb_project $project_name" \
+	--feats_normalize "" \
+	--ngpu 1 \
+	--stage 12 \
+	--lang jp \
+	--token_type char \
+	--feats_type raw \
+	--use_lm false \
+	--asr_config "${asr_config}" \
+	--inference_config "${inference_config}" \
+	--inference_asr_model "valid.acc.best.pth" \
+	--inference_nj 16 \
+	--lm_config "${lm_config}" \
+	--train_set "${train_set}" \
+	--valid_set "${valid_set}" \
+	--test_sets "${test_sets}" \
+	--speed_perturb_factors "${speed_perturb_factors}" \
+	--lm_train_text "data/train_nodev/text" "$@" || line_notify "failue $project_name"
 
 line_notify "end $project_name"

@@ -11,17 +11,17 @@ best_model_criterion:
     - max
 keep_nbest_models: 10
 unused_parameters: true
-freeze_param: [
-"frontend.upstream"
-]
+freeze_param: ["frontend.upstream"]
 
 frontend: s3prl
 frontend_conf:
     frontend_conf:
       upstream: wav2vec2_local  # Note: If the upstream is changed, please change the input_size in the preencoder.
-      #path_or_url: ./downloads/wav2vec_pretrained_models/wav2vec2_csj_large_s3prl.pt
-      path_or_url: ./downloads/wav2vec_pretrained_models/wav2vec2_laboro_large_wip_s3prl.pt
-    download_dir: ./downloads/wav2vec_pretrained_models
+    # path_or_url: ./downloads/wav2vec_pretrained_models/wav2vec2_csj_large_s3prl.pt
+    # path_or_url: ./downloads/wav2vec_pretrained_models/wav2vec2_laboro_large_wip_s3prl.pt
+    path_or_url: ./downloads/ctc_finetuned_csj/ctc_base_ctc.pt
+    # download_dir: ./downloads/wav2vec_pretrained_models
+    download_dir: ./downloads/ctc_finetuned_csj
     multilayer_feature: True
 
 preencoder: linear
