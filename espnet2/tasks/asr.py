@@ -324,7 +324,12 @@ class ASRTask(AbsTask):
             help="If len(noise) / len(speech) is smaller than this threshold during "
             "dynamic mixing, a warning will be displayed.",
         )
-
+        group.add_argument(
+            "--use_lora",
+            type=bool,
+            default=False,
+            help="Use LoRA for speech enhancement",
+        )
         for class_choices in cls.class_choices_list:
             # Append --<name> and --<name>_conf.
             # e.g. --encoder and --encoder_conf

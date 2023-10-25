@@ -3,7 +3,6 @@
 
 """Encoder definition."""
 import contextlib
-import copy
 import logging
 import os
 from typing import Optional, Tuple
@@ -15,6 +14,7 @@ from typeguard import check_argument_types
 from espnet2.asr.encoder.abs_encoder import AbsEncoder
 from espnet.nets.pytorch_backend.nets_utils import make_pad_mask
 from espnet.nets.pytorch_backend.transformer.layer_norm import LayerNorm
+import loralib as lora
 
 
 class FairSeqWav2Vec2Encoder(AbsEncoder):
@@ -38,6 +38,8 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
         output_size: int = 256,
         normalize_before: bool = False,
         freeze_finetune_updates: int = 0,
+        use_lora: bool = False,
+        lora_r: int = 32,
     ):
         assert check_argument_types()
         super().__init__()
@@ -61,7 +63,11 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
             self._output_size = output_size
 
             # define task
-            from fairseq.tasks.audio_pretraining import AudioPretrainingConfig, AudioPretrainingTask
+            from fairseq.tasks.audio_pretraining import (
+                AudioPretrainingConfig,
+                AudioPretrainingTask,
+            )
+
             task_conf = AudioPretrainingConfig(
                 _name="audio_pretraining",
                 data="",
@@ -70,29 +76,33 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
                 normalize=True,
             )
             task = AudioPretrainingTask(task_conf)
-
         ctc_overrides = {
-            "data": w2v_dir_path,
-            "mask_prob": 0.5,
-            "mask_channel_prob": 0.25,
-            "mask_channel_length": 64,
-            "layerdrop": 0.1,
-            "activation_dropout": 0.1,
-            "feature_grad_mult": 0.0,
-            "mask_prob": 0.5,
-            "mask_length": 10,
-            "require_same_masks": True,
-            "dropout_input": 0.0,
-            "dropout": 0.0,
-            "attention_dropout": 0.0,
-            "mask_other": 0,
-            "mask_dropout": 0.0,
+            "model": {
+                "data": w2v_dir_path,
+                "mask_prob": 0.5,
+                "mask_channel_prob": 0.25,
+                "mask_channel_length": 64,
+                "layerdrop": 0.1,
+                "activation_dropout": 0.1,
+                "feature_grad_mult": 0.0,
+                "mask_prob": 0.5,
+                "mask_length": 10,
+                "require_same_masks": True,
+                "dropout_input": 0.0,
+                "dropout": 0.0,
+                "attention_dropout": 0.0,
+                "mask_other": 0,
+                "mask_dropout": 0.0,
+                "use_lora": use_lora,
+                "lora_r": lora_r,
+            }
         }
 
         models, _, _ = fairseq.checkpoint_utils.load_model_ensemble_and_task(
             [self.w2v_model_path],
             arg_overrides=ctc_overrides,
             task=task,
+            strict=False,
         )
         model = models[0]
 
@@ -107,6 +117,11 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
                     "'Wav2Vec2Model, Wav2VecCTC' classes, etc."
                 )
                 raise e
+
+        if use_lora:
+            lora.mark_only_lora_as_trainable(model)
+            for name, param in model.named_parameters():
+                logging.info(f"{name} {param.requires_grad}")
 
         self.encoders = model
 
@@ -180,6 +195,7 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
 
     # def reload_pretrained_parameters(self):
     #     self.encoders.load_state_dict(self.pretrained_params)
+    #     del self.pretrained_params
     #     logging.info("Pretrained Wav2Vec model parameters reloaded!")
 
 

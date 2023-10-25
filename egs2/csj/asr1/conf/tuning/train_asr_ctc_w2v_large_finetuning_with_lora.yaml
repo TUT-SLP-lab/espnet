@@ -1,6 +1,6 @@
 batch_type: numel
-batch_bins: 1920000 #7680000 # 30720000 # 元論文では，1batchが1,920 sec なので，sr = 16000とすると，30,720,000 sample
-accum_grad: 64 # 4
+batch_bins: 3840000 #7680000 # 30720000 # 元論文では，1batchが1,920 sec なので，sr = 16000とすると，30,720,000 sample
+accum_grad: 32 # 4
 max_epoch: 100
 patience: none
 # The initialization method for model parameters
@@ -11,18 +11,19 @@ best_model_criterion:
     - max
 keep_nbest_models: 10
 
-freeze_param:
-  ["encoder.encoders.mask_emb", "encoder.encoders.feature_extractor"]
+use_lora: true
 input_size: 2048
 encoder: wav2vec2
 encoder_conf:
   output_size: 1024
   normalize_before: false
-  freeze_finetune_updates: 0
+  freeze_finetune_updates: 10000
   # w2v_url: /home/kinouchi/Documents/wav2vec_espnet/espnet/egs2/csj/asr1/downloads/wav2vec_pretrained_models/wav2vec_laboro.pt
   # w2v_url: /home/kinouchi/Documents/wav2vec_espnet/espnet/egs2/csj/asr1/download/laboro_w2v_base_xls_r.pt
   w2v_url: /home/kinouchi/Documents/espnet/egs2/csj/asr1/download/laboro_w2v_base_xls_r.pt
   w2v_dir_path: ./downloads/wav2vec2_pretrained_models
+  use_lora: true
+  lora_r: 16
 model_conf:
   ctc_weight: 1.0
   lsm_weight: 0.1
@@ -33,7 +34,7 @@ optim_conf:
   lr: 0.00003
 scheduler: warmuplr
 scheduler_conf:
-  warmup_steps: 32000
+  warmup_steps: 1000 # 32000
 
 unused_parameters: true
 

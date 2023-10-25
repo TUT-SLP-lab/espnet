@@ -5,7 +5,7 @@ set -e
 set -u
 set -o pipefail
 
-project_name="origin_xlsr_ctc_asr"
+project_name="labor_xlsr_ctc_asr_4090"
 
 . ~/tools/line_notificator.sh
 
@@ -13,7 +13,7 @@ train_set=train_nodup
 valid_set=train_dev
 test_sets="dev eval1 eval2 eval3 tedx-jp-10k"
 
-asr_config=conf/tuning/train_asr_ctc_w2v_large_finetuning.yaml
+asr_config=conf/tuning/train_asr_ctc_w2v_large_finetuning_with_lora.yaml
 inference_config=conf/decode_w2v_ctc_asr.yaml
 lm_config=conf/train_lm.yaml
 
@@ -35,10 +35,10 @@ for sub_lm_weight in "${sub_lm_weight_list[@]}"; do
 		./asr.sh \
 			--asr_args "--use_wandb true --wandb_project $project_name" \
 			--feats_normalize "" \
-			--ngpu 4 \
+			--ngpu 1 \
 			--stage 11 \
 			--lang jp \
-			--dumpdir "/mnt/WDB_8TSSD/csj_dump" \
+			--dumpdir "$HOME/databases/csj_dump" \
 			--token_type char \
 			--feats_type raw \
 			--use_lm false \
