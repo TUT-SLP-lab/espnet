@@ -54,7 +54,7 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
                 raise e
         if "http" in w2v_url:
             self.w2v_model_path = download_w2v(w2v_url, w2v_dir_path)
-            task=None
+            task = None
         else:
             self.w2v_model_path = w2v_url
             logging.info(f"Load model {self.w2v_model_path}")
@@ -63,14 +63,14 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
             # define task
             from fairseq.tasks.audio_pretraining import AudioPretrainingConfig, AudioPretrainingTask
             task_conf = AudioPretrainingConfig(
-                    _name="audio_pretraining",
-                    data= "",
-                    max_sample_size= 400000,
-                    min_sample_size= 16000,
-                    normalize= True,
+                _name="audio_pretraining",
+                data="",
+                max_sample_size=400000,
+                min_sample_size=16000,
+                normalize=True,
             )
             task = AudioPretrainingTask(task_conf)
-        
+
         ctc_overrides = {
             "data": w2v_dir_path,
             "mask_prob": 0.5,
@@ -84,7 +84,7 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
             "require_same_masks": True,
             "dropout_input": 0.0,
             "dropout": 0.0,
-            "attention_dropout":0.0,
+            "attention_dropout": 0.0,
             "mask_other": 0,
             "mask_dropout": 0.0,
         }
@@ -110,7 +110,7 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
 
         self.encoders = model
 
-        self.pretrained_params = copy.deepcopy(model.state_dict())
+        # self.pretrained_params = copy.deepcopy(model.state_dict())
 
         self.normalize_before = normalize_before
         if self.normalize_before:
@@ -178,9 +178,9 @@ class FairSeqWav2Vec2Encoder(AbsEncoder):
 
         return xs_pad, olens, None
 
-    def reload_pretrained_parameters(self):
-        self.encoders.load_state_dict(self.pretrained_params)
-        logging.info("Pretrained Wav2Vec model parameters reloaded!")
+    # def reload_pretrained_parameters(self):
+    #     self.encoders.load_state_dict(self.pretrained_params)
+    #     logging.info("Pretrained Wav2Vec model parameters reloaded!")
 
 
 def download_w2v(model_url, dir_path):

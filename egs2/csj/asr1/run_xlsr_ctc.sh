@@ -5,13 +5,13 @@ set -e
 set -u
 set -o pipefail
 
-project_name="labor_xlsr_ctc_asr"
+project_name="origin_xlsr_ctc_asr"
 
 . ~/tools/line_notificator.sh
 
 train_set=train_nodup
 valid_set=train_dev
-test_sets="dev eval1 eval2 eval3" # tedx-jp-10k"
+test_sets="dev eval1 eval2 eval3 tedx-jp-10k"
 
 asr_config=conf/tuning/train_asr_ctc_w2v_large_finetuning.yaml
 inference_config=conf/decode_w2v_ctc_asr.yaml
@@ -24,8 +24,8 @@ sub_lm_exp=exp/csj_lm_train_lm_jp_char
 # (train_set will be "${train_set}_sp" if speed_perturb_factors is specified)
 speed_perturb_factors="0.9 1.0 1.1"
 
-add_lm_weight_list=(0.8)
-sub_lm_weight_list=(0.35)
+add_lm_weight_list=(0)   #(0.8)
+sub_lm_weight_list=(0.5) #(0.35)
 
 line_notify "start $project_name"
 for sub_lm_weight in "${sub_lm_weight_list[@]}"; do
@@ -41,14 +41,14 @@ for sub_lm_weight in "${sub_lm_weight_list[@]}"; do
 			--dumpdir "/mnt/WDB_8TSSD/csj_dump" \
 			--token_type char \
 			--feats_type raw \
-			--use_lm true \
+			--use_lm false \
 			--asr_config "${asr_config}" \
 			--inference_config "${inference_config}" \
 			--inference_args "--add_lm_weight $add_lm_weight --sub_lm_weight $sub_lm_weight" \
 			--inference_tag "decode_w2v_ctc_asr_lagest_add_w${add_lm_weight}_sub_w${sub_lm_weight}" \
 			--inference_asr_model "latest.pth" \
 			--gpu_inference true \
-			--inference_nj 512 \
+			--inference_nj 64 \
 			--lm_config "${lm_config}" \
 			--train_set "${train_set}" \
 			--valid_set "${valid_set}" \
