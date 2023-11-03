@@ -16,13 +16,15 @@ freeze_param:
 input_size: 2048
 encoder: wav2vec2
 encoder_conf:
-  output_size: 1024
-  normalize_before: false
-  freeze_finetune_updates: 0
-  # w2v_url: /home/kinouchi/Documents/wav2vec_espnet/espnet/egs2/csj/asr1/downloads/wav2vec_pretrained_models/wav2vec_laboro.pt
-  # w2v_url: /home/kinouchi/Documents/wav2vec_espnet/espnet/egs2/csj/asr1/download/laboro_w2v_base_xls_r.pt
-  w2v_url: /home/kinouchi/Documents/espnet/egs2/csj/asr1/download/laboro_w2v_base_xls_r.pt
-  w2v_dir_path: ./downloads/wav2vec2_pretrained_models
+    output_size: 1024
+    normalize_before: false
+    freeze_finetune_updates: 0 #10000
+    # w2v_url: /home/kinouchi/Documents/wav2vec_espnet/espnet/egs2/csj/asr1/downloads/wav2vec_pretrained_models/wav2vec_laboro.pt
+    # w2v_url: /home/kinouchi/Documents/wav2vec_espnet/espnet/egs2/csj/asr1/downloads/wav2vec_pretrained_models/laboro_w2v_base_xls_r.pt
+    # w2v_url: /home/kinouchi/Documents/wav2vec_espnet/espnet/egs2/csj/asr1/downloads/xlsr2_300m.pt
+    w2v_url: /home/kinouchi/Documents/wav2vec_espnet/espnet/egs2/csj/asr1/downloads/csj-xls-r.pt
+    w2v_dir_path: ./downloads/wav2vec2_pretrained_models
+
 model_conf:
   ctc_weight: 1.0
   lsm_weight: 0.1

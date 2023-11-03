@@ -5,7 +5,7 @@ set -e
 set -u
 set -o pipefail
 
-project_name="labor_xlsr_ctc_asr_4090"
+project_name="csj_xlsr_ctc_asr"
 
 . ~/tools/line_notificator.sh
 
@@ -24,8 +24,8 @@ sub_lm_exp=exp/csj_lm_train_lm_jp_char
 # (train_set will be "${train_set}_sp" if speed_perturb_factors is specified)
 speed_perturb_factors="0.9 1.0 1.1"
 
-add_lm_weight_list=(0)   #(0.8)
-sub_lm_weight_list=(0.5) #(0.35)
+add_lm_weight_list=(0) #(0.8)
+sub_lm_weight_list=(0) #(0.35)
 
 line_notify "start $project_name"
 for sub_lm_weight in "${sub_lm_weight_list[@]}"; do
