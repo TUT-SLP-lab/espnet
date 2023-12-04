@@ -77,7 +77,7 @@ ngram_exp=
 ngram_num=3
 
 # Language model related
-use_lm=true       # Use language model for ASR decoding.
+use_lm=false       # Use language model for ASR decoding.
 lm_tag=           # Suffix to the result dir for language model training.
 lm_exp=           # Specify the directory path for LM experiment.
                   # If this option is specified, lm_tag is ignored.
