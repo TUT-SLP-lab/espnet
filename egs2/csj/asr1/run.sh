@@ -19,7 +19,7 @@ speed_perturb_factors="0.9 1.0 1.1"
 
 # NOTE: The default settings require 4 GPUs with 32 GB memory
 ./asr.sh \
-    --ngpu 4 \
+    --ngpu 1 \
     --lang jp \
     --token_type char \
     --feats_type raw \
