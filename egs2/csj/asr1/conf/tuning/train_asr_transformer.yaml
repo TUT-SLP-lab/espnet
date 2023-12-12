@@ -23,6 +23,8 @@ encoder_conf:
     attention_dropout_rate: 0.1
     input_layer: conv2d6
     normalize_before: true
+    interctc_layer_idx: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    interctc_use_conditioning: false
 
 decoder: transformer
 decoder_conf:
