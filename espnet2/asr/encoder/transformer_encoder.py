@@ -4,6 +4,7 @@
 """Transformer encoder definition."""
 
 from typing import List, Optional, Tuple
+import logging
 
 import torch
 from typeguard import check_argument_types
@@ -12,6 +13,8 @@ from espnet2.asr.ctc import CTC
 from espnet2.asr.encoder.abs_encoder import AbsEncoder
 from espnet.nets.pytorch_backend.nets_utils import make_pad_mask
 from espnet.nets.pytorch_backend.transformer.attention import MultiHeadedAttention
+from espnet.nets.pytorch_backend.transformer.attention import MultiHeadAttention_frame
+from espnet.nets.pytorch_backend.transformer.attention import MultiHeadAttention_HJEdit
 from espnet.nets.pytorch_backend.transformer.embedding import PositionalEncoding
 from espnet.nets.pytorch_backend.transformer.encoder_layer import EncoderLayer
 from espnet.nets.pytorch_backend.transformer.layer_norm import LayerNorm
@@ -79,6 +82,7 @@ class TransformerEncoder(AbsEncoder):
         padding_idx: int = -1,
         interctc_layer_idx: List[int] = [],
         interctc_use_conditioning: bool = False,
+        use_all_layers: bool = False,
         layer_drop_rate: float = 0.0,
     ):
         assert check_argument_types()
@@ -162,6 +166,9 @@ class TransformerEncoder(AbsEncoder):
             ),
             layer_drop_rate,
         )
+        # self.linear = torch.nn.Linear(num_blocks * output_size, output_size)
+        self.multihead_attn = MultiHeadAttention_frame(attention_heads, output_size, dropout_rate)
+
         if self.normalize_before:
             self.after_norm = LayerNorm(output_size)
 
@@ -170,6 +177,8 @@ class TransformerEncoder(AbsEncoder):
             assert 0 < min(interctc_layer_idx) and max(interctc_layer_idx) < num_blocks
         self.interctc_use_conditioning = interctc_use_conditioning
         self.conditioning_layer = None
+        self.use_all_layers  = use_all_layers
+        self.num_blocks = num_blocks
 
     def output_size(self) -> int:
         return self._output_size
@@ -217,19 +226,30 @@ class TransformerEncoder(AbsEncoder):
             xs_pad, masks = self.embed(xs_pad, masks)
         else:
             xs_pad = self.embed(xs_pad)
+        # logging.info(f"origitnal mask size: {masks.size()}")
 
+        original_xs = xs_pad
         intermediate_outs = []
+        all_intermediate_outs = []
         if len(self.interctc_layer_idx) == 0:
             for layer_idx, encoder_layer in enumerate(self.encoders):
                 xs_pad, masks = encoder_layer(xs_pad, masks)
-                if return_all_hs:
+                if return_all_hs or self.use_all_layers:
                     if isinstance(xs_pad, tuple):
                         intermediate_outs.append(xs_pad[0])
+                        all_intermediate_outs.append(self.after_norm(xs_pad[0]))
                     else:
                         intermediate_outs.append(xs_pad)
+                        all_intermediate_outs.append(self.after_norm(xs_pad))
         else:
             for layer_idx, encoder_layer in enumerate(self.encoders):
                 xs_pad, masks = encoder_layer(xs_pad, masks)
+
+                if self.use_all_layers:
+                    if isinstance(xs_pad, tuple):
+                        all_intermediate_outs.append(xs_pad[0])
+                    else:
+                        all_intermediate_outs.append(xs_pad)
 
                 if layer_idx + 1 in self.interctc_layer_idx:
                     encoder_out = xs_pad
@@ -243,6 +263,26 @@ class TransformerEncoder(AbsEncoder):
                     if self.interctc_use_conditioning:
                         ctc_out = ctc.softmax(encoder_out)
                         xs_pad = xs_pad + self.conditioning_layer(ctc_out)
+
+        # Using all encoder  layer's outputs
+        if self.use_all_layers:
+            # logging.info("Using all encoder layer's outputs")
+
+            # shift_xs_pad = torch.roll(xs_pad, 1, 1) # (B, T, D)
+            # shift_xs_pad = shift_xs_pad.unsqueeze(2) # (B, T, 1, D)
+            # original_xs_tensor = original_xs.unsqueeze(2) # (B, T, 1, D)
+            last_layer = xs_pad.unsqueeze(2) # (B, T, 1, D)
+
+            inter_tensor = torch.stack(all_intermediate_outs, dim=2) # (B, T, L, D)
+            # inter_tensor = torch.stack(all_intermediate_outs, dim=1) # (B, L, T, D)
+            # inter_tensor_mean = torch.mean(inter_tensor, 2) # (B, L, D)
+            
+            ct = self.multihead_attn(last_layer, inter_tensor, inter_tensor)
+            ct = self.after_norm(ct)
+            # ct[:, 0] = xs_pad[:, 0]
+            intermediate_outs = [(self.num_blocks + 1, ct)]
+            # intermediate_outs.append((self.num_blocks + 1, ct))
+            # xs_pad = xs_pad + ct
 
         if self.normalize_before:
             xs_pad = self.after_norm(xs_pad)

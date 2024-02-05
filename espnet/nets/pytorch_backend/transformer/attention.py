@@ -303,3 +303,137 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
         )  # (batch, head, time1, time2)
 
         return self.forward_attention(v, scores, mask)
+
+
+class MultiHeadAttention_HJEdit(nn.Module):
+    def __init__(self, n_head, n_feat, dropout_rate):
+        super().__init__()
+        self.n_feat = n_feat
+        self.n_head = n_head
+        self.d_head = n_feat // n_head
+        assert n_feat % n_head == 0
+
+        self.linear_q = nn.Linear(self.d_head, self.d_head)
+        self.linear_k = nn.Linear(self.d_head, self.d_head)
+        self.linear_v = nn.Linear(self.d_head, self.d_head)
+        self.linear_out = nn.Linear(self.n_feat, self.n_feat)
+        self.attn = None
+        self.dropout = nn.Dropout(p=dropout_rate)
+
+    def forward(self, q, kv) -> torch.Tensor:
+        """multi-head attention for hojo edition
+
+        Args:
+            q (torch.Tensor): Size([B, 1, D])
+            kv (torch.Tensor): Size([B, L, T, D])
+
+        Returns:
+            torch.Tensor: Size([B, T, D])
+        """
+        assert q.shape[-1] == self.n_feat
+        assert kv.shape[-1] == self.n_feat
+
+        q = q.mean(dim=-2)
+        v = kv
+        k = kv.mean(dim=-2)
+
+        q = q.view(*q.shape[:-1], self.n_head, self.d_head)
+        k = k.view(*k.shape[:-1], self.n_head, self.d_head)
+        v = v.view(*v.shape[:-1], self.n_head, self.d_head)
+
+        q = self.linear_q(q)
+        k = self.linear_k(k)
+        v = self.linear_v(v)
+
+        # q: (B, 1, n_head, d_head) -> (B, n_head, 1, d_head)
+        q = q.transpose(-2, -3)
+        # k: (B, L, n_head, d_head) -> (B, n_head, L, d_head)
+        k = k.transpose(-2, -3)
+
+        # scaled dot-product attention
+        # attw: (B, n_head, 1, L)
+        attw = torch.matmul(q, k.transpose(-2, -1)) / (self.d_head**0.5)
+        self.attn = torch.softmax(attw, dim=-1)
+        p_attw = self.dropout(self.attn)
+
+        # v: (B, L, T, n_head, d_head) -> (B, n_head, T * d_head, L)
+        t = v.shape[2]
+        l = v.shape[1]
+        v = v.transpose(-2, -4).transpose(-1, -2)
+        v = v.contiguous().view(*v.shape[:2], t * self.d_head, l)
+
+        # ct : (B, n_head, 1, L) * (B, n_head, T * d_head, L).T -> (B, n_head, 1, T * d_head)
+        ct = torch.matmul(p_attw, v.transpose(-1, -2))
+        # ct: (B, n_head, 1, T * d_head) -> (B, n_head, 1, T, d_head)
+        ct = ct.view(*p_attw.shape[:-1], t, self.d_head)
+
+        # ct: (B, n_head, 1, T, d_head) -> (B, T, D)
+        ct = ct.transpose(-2, -4)
+        ct = ct.contiguous().view(*ct.shape[:-3], self.n_feat)
+
+        return self.linear_out(ct)
+
+
+class MultiHeadAttention_frame(nn.Module):
+    def __init__(self, n_head, n_feat, dropout_rate):
+        super(MultiHeadAttention_frame, self).__init__()
+        self.n_feat = n_feat
+        self.n_head = n_head
+        self.d_head = n_feat // n_head
+        assert n_feat % n_head == 0
+
+        self.linear_q = nn.Linear(self.d_head, self.d_head)
+        self.linear_k = nn.Linear(self.d_head, self.d_head)
+        self.linear_v = nn.Linear(self.d_head, self.d_head)
+        self.linear_out = nn.Linear(self.n_feat, self.n_feat)
+        self.attn = None
+        self.dropout = nn.Dropout(p=dropout_rate)
+
+    def forward(self, q, k, v) -> torch.Tensor:
+        """multi-head attention
+
+        Args:
+            q (torch.Tensor): Size([B, T, 1, D])
+            k (torch.Tensor): Size([B, T, L, D])
+            v (torch.Tensor): Size([B, T, L, D])
+
+        Returns:
+            torch.Tensor: Size([B, T, D])
+        """
+        assert q.shape[-1] == self.n_feat
+        assert k.shape[-1] == self.n_feat
+        assert v.shape[-1] == self.n_feat
+
+        q = q.view(*q.shape[:-1], self.n_head, self.d_head)
+        k = k.view(*k.shape[:-1], self.n_head, self.d_head)
+        v = v.view(*v.shape[:-1], self.n_head, self.d_head)
+
+        q = self.linear_q(q)
+        k = self.linear_k(k)
+        v = self.linear_v(v)
+
+        # q: (B, T, 1, n_head, d_head) -> (B, T, n_head, 1, d_head)
+        q = q.transpose(-2, -3)
+        # k: (B, T, L, n_head, d_head) -> (B, T, n_head, L, d_head)
+        k = k.transpose(-2, -3)
+
+        # scaled dot-product attention
+        # attw: (B, T, n_head, 1, L)
+        attw = torch.matmul(q, k.transpose(-2, -1)) / (self.d_head**0.5)
+        self.attn = torch.softmax(attw, dim=-1)
+        p_attw = self.dropout(self.attn)
+        p_attw = (p_attw == p_attw.amax(dim=-1, keepdim=True)).float() # select max
+
+        # v: (B, T, L, n_head, d_head) -> (B, T, n_head, L, d_head)
+        v = v.transpose(-2, -3)
+
+        # ct : (B, T, n_head, 1, L) * (B, T, n_head, L, d_head) -> (B, T, n_head, 1, d_head)
+        ct = torch.matmul(p_attw, v)
+
+        # ct: (B, T, n_head, 1, d_head) -> (B, T, n_head, d_head)
+        ct = ct.squeeze(-2)
+
+        # ct: (B, T, n_head, d_head) -> (B, T, D)
+        ct = ct.view(*ct.shape[:-2], self.n_feat)
+
+        return self.linear_out(ct)

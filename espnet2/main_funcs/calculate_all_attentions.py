@@ -22,6 +22,7 @@ from espnet.nets.pytorch_backend.rnn.attentions import (
     NoAtt,
 )
 from espnet.nets.pytorch_backend.transformer.attention import MultiHeadedAttention
+from espnet.nets.pytorch_backend.transformer.attention import MultiHeadAttention_HJEdit
 
 
 @torch.no_grad()
@@ -49,7 +50,7 @@ def calculate_all_attentions(
     for name, modu in model.named_modules():
 
         def hook(module, input, output, name=name):
-            if isinstance(module, MultiHeadedAttention):
+            if isinstance(module, MultiHeadedAttention) or isinstance(module, MultiHeadAttention_HJEdit):
                 # NOTE(kamo): MultiHeadedAttention doesn't return attention weight
                 # attn: (B, Head, Tout, Tin)
                 outputs[name] = module.attn.detach().cpu()
