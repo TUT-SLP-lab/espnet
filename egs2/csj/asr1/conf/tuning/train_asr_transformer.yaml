@@ -23,8 +23,9 @@ encoder_conf:
     attention_dropout_rate: 0.1
     input_layer: conv2d6
     normalize_before: true
-    interctc_layer_idx: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    interctc_layer_idx: []
     interctc_use_conditioning: false
+    use_all_layers: true
 
 decoder: transformer
 decoder_conf:
@@ -39,6 +40,7 @@ decoder_conf:
 model_conf:
     ctc_weight: 1.0
     lsm_weight: 0.1
+    interctc_weight: 0.5
     length_normalized_loss: false
 
 optim: adam
