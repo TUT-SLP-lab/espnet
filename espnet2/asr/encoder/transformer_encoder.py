@@ -166,8 +166,9 @@ class TransformerEncoder(AbsEncoder):
             ),
             layer_drop_rate,
         )
-        # self.linear = torch.nn.Linear(num_blocks * output_size, output_size)
-        self.multihead_attn = MultiHeadAttention_frame(attention_heads, output_size, dropout_rate)
+        
+        if use_all_layers:
+            self.multihead_attn = MultiHeadAttention_frame(attention_heads, output_size, dropout_rate)
 
         if self.normalize_before:
             self.after_norm = LayerNorm(output_size)
@@ -270,14 +271,14 @@ class TransformerEncoder(AbsEncoder):
 
             # shift_xs_pad = torch.roll(xs_pad, 1, 1) # (B, T, D)
             # shift_xs_pad = shift_xs_pad.unsqueeze(2) # (B, T, 1, D)
-            # original_xs_tensor = original_xs.unsqueeze(2) # (B, T, 1, D)
-            last_layer = xs_pad.unsqueeze(2) # (B, T, 1, D)
+            original_xs_tensor = original_xs.unsqueeze(2) # (B, T, 1, D)
+            # last_layer = xs_pad.unsqueeze(2) # (B, T, 1, D)
 
             inter_tensor = torch.stack(all_intermediate_outs, dim=2) # (B, T, L, D)
             # inter_tensor = torch.stack(all_intermediate_outs, dim=1) # (B, L, T, D)
             # inter_tensor_mean = torch.mean(inter_tensor, 2) # (B, L, D)
             
-            ct = self.multihead_attn(last_layer, inter_tensor, inter_tensor)
+            ct = self.multihead_attn(original_xs_tensor, inter_tensor, inter_tensor)
             ct = self.after_norm(ct)
             # ct[:, 0] = xs_pad[:, 0]
             intermediate_outs = [(self.num_blocks + 1, ct)]

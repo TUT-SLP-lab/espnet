@@ -9,14 +9,16 @@ train_set="train"
 valid_set="dev"
 test_sets="test dev"
 
-asr_config=conf/train_asr_e_branchformer.yaml
-inference_config=conf/decode_asr.yaml
+asr_config=conf/train_asr_transformer.yaml
+inference_config=conf/decode_asr_ctc.yaml
+# asr_config=conf/train_asr_e_branchformer.yaml
+# inference_config=conf/decode_asr.yaml
 
 ./asr.sh \
     --lang en \
     --nj 8 \
-    --ngpu 2 \
-    --gpu_inference true \
+    --ngpu 4 \
+    --gpu_inference false \
     --inference_nj 2 \
     --feats_type raw \
     --audio_format "flac.ark" \
