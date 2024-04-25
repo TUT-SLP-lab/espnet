@@ -889,6 +889,12 @@ class Trainer:
                         p.parent.mkdir(parents=True, exist_ok=True)
                         fig.savefig(p)
 
+                        # # multihead_attn weights are saved as torch.Tensor
+                        if reporter.get_epoch() == options.max_epoch:
+                            if k == "encoder.multihead_attn" or "encoder.multihead_attn2":
+                                pp = output_dir / id_ / f"{k}.{reporter.get_epoch()}ep.pth"
+                                torch.save(att_w, pp)
+
                     if summary_writer is not None:
                         summary_writer.add_figure(
                             f"{k}_{id_}", fig, reporter.get_epoch()
