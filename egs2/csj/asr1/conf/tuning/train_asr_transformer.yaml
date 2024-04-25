@@ -1,7 +1,7 @@
 # This configuration requires 4 GPUs with 32GB memory
 batch_type: numel
-batch_bins: 10000000
-accum_grad: 9
+batch_bins: 30000000
+accum_grad: 3
 max_epoch: 50
 patience: none
 # The initialization method for model parameters
@@ -24,7 +24,7 @@ encoder_conf:
     input_layer: conv2d6
     normalize_before: true
     interctc_layer_idx: []
-    interctc_use_conditioning: false
+    interctc_use_conditioning: true
     use_all_layers: true
 
 decoder: transformer

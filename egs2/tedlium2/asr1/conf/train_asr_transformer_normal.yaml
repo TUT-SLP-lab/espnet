@@ -8,7 +8,7 @@ patience: none
 init: xavier_uniform
 best_model_criterion:
 -   - valid
-    - cer_ctc
+    - cer
     - min
 keep_nbest_models: 10
 
@@ -17,20 +17,30 @@ encoder_conf:
     output_size: 512
     attention_heads: 8
     linear_units: 2048
-    num_blocks: 18
+    num_blocks: 12
     dropout_rate: 0.1
     positional_dropout_rate: 0.1
     attention_dropout_rate: 0.1
     input_layer: conv2d6
     normalize_before: true
     interctc_layer_idx: []
-    interctc_use_conditioning: true
-    use_all_layers: true
+    interctc_use_conditioning: false
+    use_all_layers: false
+
+decoder: transformer
+decoder_conf:
+    attention_heads: 8
+    linear_units: 2048
+    num_blocks: 6
+    dropout_rate: 0.1
+    positional_dropout_rate: 0.1
+    self_attention_dropout_rate: 0.1
+    src_attention_dropout_rate: 0.1
 
 model_conf:
-    ctc_weight: 1.0
+    ctc_weight: 0.0
     lsm_weight: 0.1
-    interctc_weight: 0.5
+    interctc_weight: 0.0
     length_normalized_loss: false
 
 optim: adam
