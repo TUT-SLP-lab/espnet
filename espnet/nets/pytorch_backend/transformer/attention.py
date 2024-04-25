@@ -422,7 +422,6 @@ class MultiHeadAttention_frame(nn.Module):
         attw = torch.matmul(q, k.transpose(-2, -1)) / (self.d_head**0.5)
         self.attn = torch.softmax(attw, dim=-1)
         p_attw = self.dropout(self.attn)
-        p_attw = (p_attw == p_attw.amax(dim=-1, keepdim=True)).float() # select max
 
         # v: (B, T, L, n_head, d_head) -> (B, T, n_head, L, d_head)
         v = v.transpose(-2, -3)
