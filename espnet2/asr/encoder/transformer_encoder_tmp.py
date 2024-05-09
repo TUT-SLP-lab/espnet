@@ -82,8 +82,7 @@ class TransformerEncoder(AbsEncoder):
         padding_idx: int = -1,
         interctc_layer_idx: List[int] = [],
         interctc_use_conditioning: bool = False,
-        use_all_layers_loss: bool = False,
-        decode_all_layers: bool = False,
+        use_all_layers: bool = False,
         layer_drop_rate: float = 0.0,
     ):
         assert check_argument_types()
@@ -168,7 +167,7 @@ class TransformerEncoder(AbsEncoder):
             layer_drop_rate,
         )
         
-        if use_all_layers_loss or decode_all_layers:
+        if use_all_layers:
             self.multihead_attn = MultiHeadAttention_frame(attention_heads, output_size, dropout_rate)
             self.multihead_attn2 = MultiHeadAttention_frame(attention_heads, output_size, dropout_rate)
 
@@ -180,8 +179,7 @@ class TransformerEncoder(AbsEncoder):
             assert 0 < min(interctc_layer_idx) and max(interctc_layer_idx) < num_blocks
         self.interctc_use_conditioning = interctc_use_conditioning
         self.conditioning_layer = None
-        self.use_all_layers_loss  = use_all_layers_loss
-        self.decode_all_layers = decode_all_layers
+        self.use_all_layers  = use_all_layers
         self.num_blocks = num_blocks
 
     def output_size(self) -> int:
@@ -230,19 +228,49 @@ class TransformerEncoder(AbsEncoder):
             xs_pad, masks = self.embed(xs_pad, masks)
         else:
             xs_pad = self.embed(xs_pad)
+        # logging.info(f"origitnal mask size: {masks.size()}")
 
+        original_xs = xs_pad
         intermediate_outs = []
-        if self.use_all_layers_loss:
-            # Using all encoder layer's outputs
-
-            all_intermediate_outs = []
+        all_intermediate_outs = []
+        if len(self.interctc_layer_idx) == 0:
             for layer_idx, encoder_layer in enumerate(self.encoders):
                 xs_pad, masks = encoder_layer(xs_pad, masks)
-                if isinstance(xs_pad, tuple):
-                    all_intermediate_outs.append(xs_pad[0])
-                else:
-                    all_intermediate_outs.append(xs_pad)
-            
+                if return_all_hs or self.use_all_layers:
+                    if isinstance(xs_pad, tuple):
+                        intermediate_outs.append(xs_pad[0])
+                        all_intermediate_outs.append(xs_pad[0])
+                        # all_intermediate_outs.append(self.after_norm(xs_pad[0]))
+                    else:
+                        intermediate_outs.append(xs_pad)
+                        all_intermediate_outs.append(xs_pad)
+                        # all_intermediate_outs.append(self.after_norm(xs_pad))
+        else:
+            for layer_idx, encoder_layer in enumerate(self.encoders):
+                xs_pad, masks = encoder_layer(xs_pad, masks)
+
+                if self.use_all_layers:
+                    if isinstance(xs_pad, tuple):
+                        all_intermediate_outs.append(xs_pad[0])
+                    else:
+                        all_intermediate_outs.append(xs_pad)
+
+                if layer_idx + 1 in self.interctc_layer_idx:
+                    encoder_out = xs_pad
+
+                    # intermediate outputs are also normalized
+                    if self.normalize_before:
+                        encoder_out = self.after_norm(encoder_out)
+
+                    intermediate_outs.append((layer_idx + 1, encoder_out))
+
+                    if self.interctc_use_conditioning:
+                        ctc_out = ctc.softmax(encoder_out)
+                        xs_pad = xs_pad + self.conditioning_layer(ctc_out)
+
+        # Using all encoder  layer's outputs
+        if self.use_all_layers:
+
             # query
             mid = self.num_blocks // 2
             mid_query = all_intermediate_outs[mid-1].unsqueeze(2) # (B, T, 1, D)
@@ -265,66 +293,12 @@ class TransformerEncoder(AbsEncoder):
             # weighting module
             lower_ct = self.multihead_attn(mid_query, lower_tensor, lower_tensor) # (B, T, D)
             upper_ct = self.multihead_attn2(final_query, upper_tensor, upper_tensor) # (B, T, D)
-            intermediate_outs = [(self.num_blocks + 1, lower_ct), (self.num_blocks + 2, upper_ct)]
-            # xs_pad = torch.mean(torch.stack([lower_ct, upper_ct]), dim=0)
-            # xs_pad = lower_ct + upper_ct
+            # intermediate_outs = [(self.num_blocks + 1, lower_ct), (self.num_blocks + 2, upper_ct)]
+            xs_pad = torch.mean(torch.stack([lower_ct, upper_ct]), dim=0)
+            intermediate_outs = []
 
             # averaging layers
             # intermediate_outs = [(self.num_blocks + 1, lower_tensor.mean(dim=2)), (self.num_blocks + 2, upper_tensor.mean(dim=2))]
-        elif self.decode_all_layers:
-            mid = self.num_blocks // 2
-            lower_layers = []
-            upper_layers = []
-
-            for layer_idx, encoder_layer in enumerate(self.encoders):
-                xs_pad, masks = encoder_layer(xs_pad, masks)
-                
-                if layer_idx < mid:
-                    lower_layers.append(xs_pad)
-
-                    if layer_idx + 1 == mid:
-                        mid_query = xs_pad.unsqueeze(2)
-                        lower_tensor = torch.stack(lower_layers, dim=2) # (B, T, L, D)
-                        lower_ct = self.multihead_attn(mid_query, lower_tensor, lower_tensor) # (B, T, D)
-                        xs_pad = lower_ct
-                else:
-                    upper_layers.append(xs_pad)
-
-                    if layer_idx + 1 == self.num_blocks:
-                        ctc_out_final = ctc.softmax(self.after_norm(xs_pad))
-                        xs_pad_final = self.conditioning_layer(ctc_out_final)
-                        final_query = xs_pad_final.unsqueeze(2) # (B, T, 1, D)
-                        
-                        upper_tensor = torch.stack(upper_layers, dim=2) # (B, T, L, D)
-                        upper_ct = self.multihead_attn2(final_query, upper_tensor, upper_tensor)
-                        xs_pad = upper_ct
-                
-            intermediate_outs = [(self.num_blocks + 1, lower_ct), (self.num_blocks + 2, upper_ct)]
-        else:
-            if len(self.interctc_layer_idx) == 0:
-                for layer_idx, encoder_layer in enumerate(self.encoders):
-                    xs_pad, masks = encoder_layer(xs_pad, masks)
-                    if return_all_hs:
-                        if isinstance(xs_pad, tuple):
-                            intermediate_outs.append(xs_pad[0])
-                        else:
-                            intermediate_outs.append(xs_pad)
-            else:
-                for layer_idx, encoder_layer in enumerate(self.encoders):
-                    xs_pad, masks = encoder_layer(xs_pad, masks)
-
-                    if layer_idx + 1 in self.interctc_layer_idx:
-                        encoder_out = xs_pad
-
-                        # intermediate outputs are also normalized
-                        if self.normalize_before:
-                            encoder_out = self.after_norm(encoder_out)
-
-                        intermediate_outs.append((layer_idx + 1, encoder_out))
-
-                        if self.interctc_use_conditioning:
-                            ctc_out = ctc.softmax(encoder_out)
-                            xs_pad = xs_pad + self.conditioning_layer(ctc_out)
 
         if self.normalize_before:
             xs_pad = self.after_norm(xs_pad)
