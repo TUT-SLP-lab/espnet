@@ -6,10 +6,10 @@ set -u
 set -o pipefail
 
 ./asr.sh \
-    --nj 2 \
+    --nj 4 \
     --inference_nj 2 \
     --lang en \
-    --asr_config conf/train_asr_rnn_debug.yaml \
+    --asr_config conf/train_asr_transformer.yaml \
     --lm_config conf/train_lm_rnn_debug.yaml \
     --inference_config conf/decode_asr_debug.yaml \
     --train_set train_nodev \
