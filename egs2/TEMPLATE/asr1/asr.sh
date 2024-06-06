@@ -597,11 +597,6 @@ if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ] && ! [[ " ${skip_stages} " =~ [
         for _dsite in ${all_dsite}; do
             trg_path="data/${_dsite}/text"
             phn_path="data/${_dsite}/phoneme"
-            if [ ${_dsite} = ${train_set} ]; then
-                _lmtrain="${lmtrain}"
-            else
-                _lmtrain="NONE"
-            fi
             ${python} -m pyscripts.text.gen_phoneme \
                 --input ${trg_path} \
                 --output ${phn_path} \
