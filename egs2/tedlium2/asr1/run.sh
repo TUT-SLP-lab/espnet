@@ -17,7 +17,7 @@ inference_config=conf/decode_asr_ctc.yaml
 ./asr.sh \
     --lang en \
     --nj 8 \
-    --ngpu 4 \
+    --ngpu 1 \
     --gpu_inference false \
     --inference_nj 2 \
     --feats_type raw \
@@ -32,4 +32,7 @@ inference_config=conf/decode_asr_ctc.yaml
     --test_sets "${test_sets}" \
     --speed_perturb_factors "0.9 1.0 1.1" \
     --bpe_train_text "data/${train_set}/text" \
-    --lm_train_text "data/${train_set}/text" "$@"
+    --lm_train_text "data/${train_set}/text" "$@" \
+    --train_with_phoneme true \
+    --g2p "g2p_en"
+    

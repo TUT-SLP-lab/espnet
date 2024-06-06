@@ -1,7 +1,7 @@
 # This configuration requires 4 GPUs with 32GB memory
 batch_type: numel
-batch_bins: 30000000
-accum_grad: 3
+batch_bins: 7500000
+accum_grad: 12
 max_epoch: 50
 patience: none
 # The initialization method for model parameters
@@ -25,14 +25,15 @@ encoder_conf:
     normalize_before: true
     interctc_layer_idx: []
     interctc_use_conditioning: true
-    use_all_layers_loss: false
-    decode_all_layers: true
+    use_all_layers_loss: true
+    decode_all_layers: false
 
 model_conf:
     ctc_weight: 1.0
     lsm_weight: 0.1
     interctc_weight: 0.5
     length_normalized_loss: false
+    phoneme_layer_idx: [19]
 
 optim: adam
 optim_conf:
