@@ -1311,7 +1311,6 @@ if [ ${stage} -le 10 ] && [ ${stop_stage} -ge 10 ] && ! [[ " ${skip_stages} " =~
     done
 
     if "${train_with_phoneme}"; then
-        token_list_out="${token_list[0]},${token_list[1]}"
         # shellcheck disable=SC2046,SC2086
         ${train_cmd} JOB=1:"${_nj}" "${_logdir}"/stats.JOB.log \
             ${python} -m espnet2.bin.${asr_task}_train_phone \
@@ -1483,7 +1482,6 @@ if [ ${stage} -le 11 ] && [ ${stop_stage} -ge 11 ] && ! [[ " ${skip_stages} " =~
     fi
 
     if "${train_with_phoneme}"; then
-        token_list_out="${token_list[0]},${token_list[1]}"
         # shellcheck disable=SC2086
         ${python} -m espnet2.bin.launch \
             --cmd "${cuda_cmd} --name ${jobname}" \
