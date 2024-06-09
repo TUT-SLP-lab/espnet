@@ -24,6 +24,7 @@ from espnet2.asr.transducer.beam_search_transducer import (
 from espnet2.asr.transducer.beam_search_transducer import Hypothesis as TransHypothesis
 from espnet2.fileio.datadir_writer import DatadirWriter
 from espnet2.tasks.asr import ASRTask
+from espnet2.tasks.asr_phoneme import ASRPhonemeTask
 from espnet2.tasks.enh_s2t import EnhS2TTask
 from espnet2.tasks.lm import LMTask
 from espnet2.text.build_tokenizer import build_tokenizer
@@ -112,7 +113,7 @@ class Speech2Text:
     ):
         assert check_argument_types()
 
-        task = ASRTask if not enh_s2t_task else EnhS2TTask
+        task = ASRPhonemeTask if not enh_s2t_task else EnhS2TTask
 
         if quantize_asr_model or quantize_lm:
             if quantize_dtype == "float16" and torch.__version__ < LooseVersion(
@@ -746,14 +747,14 @@ def inference(
     )
 
     # 3. Build data-iterator
-    loader = ASRTask.build_streaming_iterator(
+    loader = ASRPhonemeTask.build_streaming_iterator(
         data_path_and_name_and_type,
         dtype=dtype,
         batch_size=batch_size,
         key_file=key_file,
         num_workers=num_workers,
-        preprocess_fn=ASRTask.build_preprocess_fn(speech2text.asr_train_args, False),
-        collate_fn=ASRTask.build_collate_fn(speech2text.asr_train_args, False),
+        preprocess_fn=ASRPhonemeTask.build_preprocess_fn(speech2text.asr_train_args, False),
+        collate_fn=ASRPhonemeTask.build_collate_fn(speech2text.asr_train_args, False),
         allow_variable_data_keys=allow_variable_data_keys,
         inference=True,
     )
