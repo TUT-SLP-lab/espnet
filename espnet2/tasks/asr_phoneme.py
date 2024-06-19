@@ -527,6 +527,9 @@ class ASRPhonemeTask(AbsTask):
             # Overwriting token_list to keep it as "portable".
             setattr(args, "token_list", list(token_list))
             setattr(args, "phone_token_list", list(phone_token_list))
+        elif isinstance(args.token_list, (tuple, list)):
+            token_list = list(args.token_list)
+            phone_token_list = list(args.phone_token_list)
         else:
             raise RuntimeError("token_list must be str")
 
