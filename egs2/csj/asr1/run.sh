@@ -9,8 +9,8 @@ train_set=train_nodup
 valid_set=train_dev
 test_sets="eval1 eval2 eval3"
 
-asr_config=conf/train_asr_transformer.yaml
-inference_config=conf/decode_asr.yaml
+asr_config=conf/tuning/train_asr_transformer-ctc.yaml
+inference_config=conf/decode_asr-ctc.yaml
 lm_config=conf/train_lm.yaml
 
 # speed perturbation related
@@ -30,4 +30,7 @@ speed_perturb_factors="0.9 1.0 1.1"
     --valid_set "${valid_set}" \
     --test_sets "${test_sets}" \
     --speed_perturb_factors "${speed_perturb_factors}" \
-    --lm_train_text "data/train_nodev/text" "$@"
+    --lm_train_text "data/train_nodev/text" "$@" \
+    --train_with_phoneme false \
+    --use_lm false \
+    --g2p pyopenjtalk

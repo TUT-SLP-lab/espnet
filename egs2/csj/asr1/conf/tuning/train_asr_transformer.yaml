@@ -26,6 +26,7 @@ encoder_conf:
     interctc_layer_idx: []
     interctc_use_conditioning: true
     use_all_layers: true
+    decode_all_layers: false
 
 decoder: transformer
 decoder_conf:
