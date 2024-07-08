@@ -27,6 +27,7 @@ encoder_conf:
     interctc_use_conditioning: true
     use_all_layers_loss: false
     decode_all_layers: true
+    divide_layer: 3
 
 model_conf:
     ctc_weight: 1.0
