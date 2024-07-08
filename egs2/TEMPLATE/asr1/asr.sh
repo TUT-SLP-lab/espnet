@@ -431,9 +431,9 @@ else
     exit 2
 fi
 
-if "${train_with_phoneme}"; then
-    token_list=("${bpetoken_list}" "${phonetonken_list}")
-fi
+# if "${train_with_phoneme}"; then
+#     token_list=("${bpetoken_list}" "${phonetonken_list}")
+# fi
 
 if ${use_word_lm}; then
     log "Error: Word LM is not supported yet"
@@ -601,6 +601,7 @@ if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ] && ! [[ " ${skip_stages} " =~ [
                 --input ${trg_path} \
                 --output ${phn_path} \
                 --output_error ${error_path} \
+                --lang ${lang} \
                 --field 2-
         done
     fi
@@ -998,13 +999,14 @@ if [ ${stage} -le 5 ] && [ ${stop_stage} -ge 5 ] && ! [[ " ${skip_stages} " =~ [
         # 0 is reserved for CTC-blank for ASR and also used as ignore-index in the other task
         ${python} -m espnet2.bin.tokenize_text  \
             --token_type "${token_type}" \
-            --input "${data_feats}/train_sp/phoneme" --output ${token_list} ${_opts} \
+            --input "${data_feats}/train_sp/phoneme" --output ${phonetonken_list} ${_opts} \
             --field 2- \
             --cleaner "${cleaner}" \
             --write_vocabulary true \
             --add_symbol "${blank}:0" \
             --add_symbol "${oov}:1" \
             --add_symbol "${sos_eos}:-1" \
+            --g2p "${g2p}"
 
     elif grep -q "whisper" <<< ${token_type}; then
         log "Stage 5: Generate whisper token_list from ${token_type} tokenizer"
@@ -1035,6 +1037,33 @@ if [ ${stage} -le 5 ] && [ ${stop_stage} -ge 5 ] && ! [[ " ${skip_stages} " =~ [
     else
         log "Error: not supported --token_type '${token_type}'"
         exit 2
+    fi
+
+    if [ ${pre_phonemize} ]; then
+        log "Stage 5: Generate phoneme level token_list from ${lm_train_text}"
+
+        _opts+=" --non_linguistic_symbols ${phone_nlsyms_txt}"
+
+        if ${sot_asr}; then
+            # For SOT training, we add <sc> as an user-defined modeling unit.
+            # The input text may be `text^1 <sc> text^2 <sc> text^3`, where `text^n`
+            # refers to the transcription of `speaker n`.
+            # The order of different texts is determined by their start times.
+            _opts+=" --add_nonsplit_symbol <sc>:2 "
+        fi
+
+        # The first symbol in token_list must be "<blank>" and the last must be also sos/eos:
+        # 0 is reserved for CTC-blank for ASR and also used as ignore-index in the other task
+        ${python} -m espnet2.bin.tokenize_text  \
+            --token_type "phn" \
+            --input "${data_feats}/lm_train.txt" --output ${phonetonken_list} ${_opts} \
+            --field 2- \
+            --cleaner "${cleaner}" \
+            --write_vocabulary true \
+            --add_symbol "${blank}:0" \
+            --add_symbol "${oov}:1" \
+            --add_symbol "${sos_eos}:-1" \
+            --g2p "${g2p}"
     fi
 
     # Create word-list for word-LM training
@@ -1320,7 +1349,7 @@ if [ ${stage} -le 10 ] && [ ${stop_stage} -ge 10 ] && ! [[ " ${skip_stages} " =~
                 --preprocessor "asrp" \
                 --bpemodel "${bpemodel}" \
                 --token_type "${token_type}" \
-                --token_list "${bpetoken_list}" \
+                --token_list "${token_list}" \
                 --phone_token_list "${phonetonken_list}" \
                 --non_linguistic_symbols "${nlsyms_txt}" \
                 --phone_non_linguistic_symbols "${phone_nlsyms_txt}" \
@@ -1496,7 +1525,7 @@ if [ ${stage} -le 11 ] && [ ${stop_stage} -ge 11 ] && ! [[ " ${skip_stages} " =~
                 --preprocessor "asrp" \
                 --bpemodel "${bpemodel}" \
                 --token_type "${token_type}" \
-                --token_list "${bpetoken_list}" \
+                --token_list "${token_list}" \
                 --phone_token_list "${phonetonken_list}" \
                 --non_linguistic_symbols "${nlsyms_txt}" \
                 --phone_non_linguistic_symbols "${phone_nlsyms_txt}" \
@@ -1669,7 +1698,19 @@ if [ ${stage} -le 12 ] && [ ${stop_stage} -ge 12 ] && ! [[ " ${skip_stages} " =~
         log "Decoding started... log: '${_logdir}/asr_inference.*.log'"
         rm -f "${_logdir}/*.log"
         # shellcheck disable=SC2046,SC2086
-        ${_cmd} --gpu "${_ngpu}" JOB=1:"${_nj}" "${_logdir}"/asr_inference.JOB.log \
+        if "${train_with_phoneme}"; then
+            ${_cmd} --gpu "${_ngpu}" JOB=1:"${_nj}" "${_logdir}"/asr_inference.JOB.log \
+                ${python} -m espnet2.bin.${asr_task}_inference_phoneme \
+                    --batch_size ${batch_size} \
+                    --ngpu "${_ngpu}" \
+                    --data_path_and_name_and_type "${_data}/${_scp},speech,${_type}" \
+                    --key_file "${_logdir}"/keys.JOB.scp \
+                    --asr_train_config "${asr_exp}"/config.yaml \
+                    --asr_model_file "${asr_exp}"/"${inference_asr_model}" \
+                    --output_dir "${_logdir}"/output.JOB \
+                    ${_opts} ${inference_args} || { cat $(grep -l -i error "${_logdir}"/asr_inference.*.log) ; exit 1; }
+        else
+            ${_cmd} --gpu "${_ngpu}" JOB=1:"${_nj}" "${_logdir}"/asr_inference.JOB.log \
             ${python} -m espnet2.bin.${asr_task}_inference${inference_bin_tag} \
                 --batch_size ${batch_size} \
                 --ngpu "${_ngpu}" \
@@ -1679,6 +1720,7 @@ if [ ${stage} -le 12 ] && [ ${stop_stage} -ge 12 ] && ! [[ " ${skip_stages} " =~
                 --asr_model_file "${asr_exp}"/"${inference_asr_model}" \
                 --output_dir "${_logdir}"/output.JOB \
                 ${_opts} ${inference_args} || { cat $(grep -l -i error "${_logdir}"/asr_inference.*.log) ; exit 1; }
+        fi
 
         # 3. Calculate and report RTF based on decoding logs
         if [ ${asr_task} == "asr" ] && [ -z ${inference_bin_tag} ]; then
