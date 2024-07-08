@@ -83,6 +83,7 @@ class TransformerEncoder(AbsEncoder):
         interctc_use_conditioning: bool = False,
         use_all_layers_loss: bool = False,
         decode_all_layers: bool = False,
+        divide_layer: int = 9,
         layer_drop_rate: float = 0.0,
     ):
         assert check_argument_types()
@@ -183,6 +184,7 @@ class TransformerEncoder(AbsEncoder):
         self.use_all_layers_loss  = use_all_layers_loss
         self.decode_all_layers = decode_all_layers
         self.num_blocks = num_blocks
+        self.divide_layer = divide_layer
 
     def output_size(self) -> int:
         return self._output_size
@@ -245,7 +247,7 @@ class TransformerEncoder(AbsEncoder):
                     all_intermediate_outs.append(xs_pad)
             
             # query
-            mid = self.num_blocks // 2
+            mid = self.divide_layer
             # mid_query = all_intermediate_outs[mid-1].unsqueeze(2) # (B, T, 1, D)
             # final_query = xs_pad.unsqueeze(2) # (B, T, 1, D)
 
@@ -280,7 +282,7 @@ class TransformerEncoder(AbsEncoder):
             # print(weights)
 
         elif self.decode_all_layers:
-            mid = self.num_blocks // 2
+            mid = self.divide_layer
             lower_layers = []
             upper_layers = []
 
