@@ -27,7 +27,6 @@ from espnet2.asr.encoder.abs_encoder import AbsEncoder
 from espnet2.asr.encoder.avhubert_encoder import FairseqAVHubertEncoder
 from espnet2.asr.encoder.branchformer_encoder import BranchformerEncoder
 from espnet2.asr.encoder.conformer_encoder import ConformerEncoder
-# from espnet2.asr.encoder.conformer_encoder_phone import PhonemeConformerEncoder
 from espnet2.asr.encoder.contextual_block_conformer_encoder import (
     ContextualBlockConformerEncoder,
 )
