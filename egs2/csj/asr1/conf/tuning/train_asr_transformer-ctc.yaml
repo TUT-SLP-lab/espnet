@@ -24,16 +24,16 @@ encoder_conf:
     input_layer: conv2d6
     normalize_before: true
     interctc_layer_idx: []
-    interctc_use_conditioning: false
+    interctc_use_conditioning: true
     use_all_layers_loss: false
-    decode_all_layers: false
+    decode_all_layers: true
 
 model_conf:
     ctc_weight: 1.0
     lsm_weight: 0.1
     interctc_weight: 0.5
     length_normalized_loss: false
-    # phoneme_layer_idx: []
+    phoneme_layer_idx: [19]
 
 optim: adam
 optim_conf:
