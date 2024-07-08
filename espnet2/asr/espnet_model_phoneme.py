@@ -132,6 +132,9 @@ class ESPnetASRModelWithPhoneme(AbsESPnetModel):
             self.encoder.conditioning_layer = torch.nn.Linear(
                 vocab_size, self.encoder.output_size()
             )
+            self.encoder.conditioning_layer_phn = torch.nn.Linear(
+                phone_vocab_size, self.encoder.output_size()
+            )
 
         self.use_transducer_decoder = joint_network is not None
 
@@ -292,10 +295,6 @@ class ESPnetASRModelWithPhoneme(AbsESPnetModel):
                 loss_ctc.detach() if loss_ctc is not None else None
             )
             stats["cer_ctc"] = cer_ctc
-            stats["phone_loss_ctc"] = (
-                phone_loss_ctc.detach() if phone_loss_ctc is not None else None
-            )
-            stats["phone_cer_ctc"] = phone_cer_ctc
 
         # Intermediate CTC (optional)
         loss_interctc = 0.0
@@ -445,7 +444,7 @@ class ESPnetASRModelWithPhoneme(AbsESPnetModel):
         # -> encoder_out: (Batch, Length2, Dim2)
         if self.encoder.interctc_use_conditioning:
             encoder_out, encoder_out_lens, _ = self.encoder(
-                feats, feats_lengths, ctc=self.ctc
+                feats, feats_lengths, ctc=self.ctc, ctc_phn=self.phone_ctc
             )
         else:
             encoder_out, encoder_out_lens, _ = self.encoder(feats, feats_lengths)
