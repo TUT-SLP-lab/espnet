@@ -190,15 +190,15 @@ class ASRPPreprocessor(AbsPreprocessor):
                 remove_non_linguistic_symbols=False,
             )
 
-            self.phone_tokenizer = build_tokenizer(
-                token_type="phn",
-                bpemodel=bpemodel,
-                delimiter=delimiter,
-                space_symbol=space_symbol,
-                non_linguistic_symbols=phone_non_linguistic_symbols,
-                g2p_type=g2p_type,
-                remove_non_linguistic_symbols=False,
-            )
+            # self.phone_tokenizer = build_tokenizer(
+            #     token_type="phn",
+            #     bpemodel=bpemodel,
+            #     delimiter=delimiter,
+            #     space_symbol=space_symbol,
+            #     non_linguistic_symbols=phone_non_linguistic_symbols,
+            #     g2p_type=g2p_type,
+            #     remove_non_linguistic_symbols=False,
+            # )
             self.phone_tokenizer = build_tokenizer(
                 token_type="word",
                 delimiter=" ",
