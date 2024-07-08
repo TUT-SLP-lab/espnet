@@ -1,6 +1,8 @@
 import argparse
 from typing import Optional
 import g2p_en
+import pyopenjtalk
+from espnet2.text.phoneme_tokenizer import pyopenjtalk_g2p_prosody
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -11,6 +13,7 @@ def parse_args():
     parser.add_argument("--field", type=str, default="2-")
     parser.add_argument("--delimiter", type=str, default=" ")
     parser.add_argument("--joint_symbol", type=str, default="@")
+    parser.add_argument("--lang", type=str)
     return parser.parse_args()
 
 
@@ -79,9 +82,14 @@ with open(args.input, "r", encoding="utf-8") as fin:
         text = text.replace("・", "")
         text = text.replace("−", "")
 
-        phones = g2p(text)
-        phones = [x for x in phones if x != " "]
-        phones = " ".join(phones)
+        if args.lang == "jp":
+            # phones = pyopenjtalk.g2p(text)
+            phones = pyopenjtalk_g2p_prosody(text)
+            phones = " ".join(phones)
+        else:
+            phones = g2p(text)
+            phones = [x for x in phones if x != " "]
+            phones = " ".join(phones)
 
         # if "pau" in phones:
         #     fout_e.write(args.delimiter.join([textinfo, phones]) + "\n")
