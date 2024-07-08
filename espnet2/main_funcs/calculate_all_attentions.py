@@ -57,8 +57,8 @@ def calculate_all_attentions(
             elif isinstance(module, MultiHeadAttention_frame):
                 # attn: (B, Head, Tout, Tin)
                 # attw: (B, T, n_head, 1, L)
-                a = module.attn.transpose(1, 2).squeeze(3)
-                outputs[name] = a.transpose(-1, -2).detach().cpu()
+                attn = module.attn.transpose(1, 2).squeeze(3)
+                outputs[name] = attn.transpose(-1, -2).detach().cpu()
             elif isinstance(module, AttLoc2D):
                 c, w = output
                 # w: previous concate attentions
