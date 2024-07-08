@@ -52,6 +52,7 @@ class ESPnetASRModel(AbsESPnetModel):
         joint_network: Optional[torch.nn.Module],
         aux_ctc: dict = None,
         ctc_weight: float = 0.5,
+        phoneme_layer_idx: List[int] = [],
         interctc_weight: float = 0.0,
         ignore_id: int = -1,
         lsm_weight: float = 0.0,
@@ -91,6 +92,7 @@ class ESPnetASRModel(AbsESPnetModel):
         self.vocab_size = vocab_size
         self.ignore_id = ignore_id
         self.ctc_weight = ctc_weight
+        self.phoneme_layer_idx = phoneme_layer_idx
         self.interctc_weight = interctc_weight
         self.aux_ctc = aux_ctc
         self.token_list = token_list.copy()
