@@ -83,6 +83,7 @@ class TransformerEncoder(AbsEncoder):
         interctc_use_conditioning: bool = False,
         use_all_layers_loss: bool = False,
         decode_all_layers: bool = False,
+        decode_3_attn: bool = False,
         divide_layer: int = 9,
         layer_drop_rate: float = 0.0,
     ):
@@ -172,6 +173,11 @@ class TransformerEncoder(AbsEncoder):
             self.multihead_attn = MultiHeadAttention_frame(attention_heads, output_size, dropout_rate)
             self.multihead_attn2 = MultiHeadAttention_frame(attention_heads, output_size, dropout_rate)
 
+        if decode_3_attn:
+            self.multihead_attn = MultiHeadAttention_frame(attention_heads, output_size, dropout_rate)
+            self.multihead_attn2 = MultiHeadAttention_frame(attention_heads, output_size, dropout_rate)
+            self.multihead_attn3 = MultiHeadAttention_frame(attention_heads, output_size, dropout_rate)
+
         if self.normalize_before:
             self.after_norm = LayerNorm(output_size)
 
@@ -183,6 +189,7 @@ class TransformerEncoder(AbsEncoder):
         self.conditioning_layer_phn = None
         self.use_all_layers_loss  = use_all_layers_loss
         self.decode_all_layers = decode_all_layers
+        self.decode_3_attn = decode_3_attn
         self.num_blocks = num_blocks
         self.divide_layer = divide_layer
 
@@ -299,10 +306,7 @@ class TransformerEncoder(AbsEncoder):
 
                         lower_tensor = torch.stack(lower_layers, dim=2) # (B, T, L, D)
                         lower_ct = self.multihead_attn(mid_query, lower_tensor, lower_tensor) # (B, T, D)
-                        
                         xs_pad = lower_ct
-                        # lower_ctc_out = ctc_phn.softmax(lower_ct)
-                        # xs_pad = xs_pad + self.conditioning_layer_phn(lower_ctc_out)
                 else:
                     upper_layers.append(xs_pad)
 
@@ -313,12 +317,52 @@ class TransformerEncoder(AbsEncoder):
                         
                         upper_tensor = torch.stack(upper_layers, dim=2) # (B, T, L, D)
                         upper_ct = self.multihead_attn2(final_query, upper_tensor, upper_tensor)
-
                         xs_pad = upper_ct
-                        # upper_ctc_out = ctc.softmax(upper_ct)
-                        # xs_pad = xs_pad + self.conditioning_layer(upper_ctc_out)
                 
             intermediate_outs = [(self.num_blocks + 1, lower_ct), (self.num_blocks + 2, upper_ct)]
+        elif self.decode_3_attn:
+            split = self.num_blocks // 3
+            lower_layers = []
+            middle_layers = []
+            upper_layers = []
+
+            for layer_idx, encoder_layer in enumerate(self.encoders):
+                xs_pad, masks = encoder_layer(xs_pad, masks)
+                
+                if layer_idx < (1 * split):
+                    lower_layers.append(xs_pad)
+
+                    if layer_idx == split - 1:
+                        ctc_out_low = ctc_phn.softmax(self.after_norm(xs_pad))
+                        xs_pad_low = self.conditioning_layer_phn(ctc_out_low)
+                        low_query = xs_pad_low.unsqueeze(2)
+
+                        lower_tensor = torch.stack(lower_layers, dim=2) # (B, T, L, D)
+                        lower_ct = self.multihead_attn(low_query, lower_tensor, lower_tensor) # (B, T, D)
+                        xs_pad = lower_ct
+                elif layer_idx < (2 * split):
+                    middle_layers.append(xs_pad)
+
+                    if layer_idx == (2 * split) - 1:
+                        ctc_out_mid = ctc.softmax(self.after_norm(xs_pad))
+                        xs_pad_mid = self.conditioning_layer(ctc_out_mid)
+                        mid_query = xs_pad_mid.unsqueeze(2)
+
+                        middle_tensor = torch.stack(middle_layers, dim=2)
+                        middle_ct = self.multihead_attn2(mid_query, middle_tensor, middle_tensor)
+                        xs_pad = middle_ct
+                else:
+                    upper_layers.append(xs_pad)
+
+                    if layer_idx == self.num_blocks - 1:
+                        ctc_out_upp = ctc.softmax(self.after_norm(xs_pad))
+                        xs_pad_upp = self.conditioning_layer(ctc_out_upp)
+                        upp_query = xs_pad_upp.unsqueeze(2)
+                        
+                        upper_tensor = torch.stack(upper_layers, dim=2)
+                        upper_ct = self.multihead_attn3(upp_query, upper_tensor, upper_tensor)
+                        xs_pad = upper_ct
+            intermediate_outs = [(self.num_blocks + 1, lower_ct), (self.num_blocks + 2, middle_ct), (self.num_blocks + 3, upper_ct)]
         else:
             if len(self.interctc_layer_idx) == 0:
                 for layer_idx, encoder_layer in enumerate(self.encoders):
