@@ -1,0 +1,3 @@
+asr_query-final_all-layer, 11.6, 11.2
+decode_step-by-step_with_phn, 10.1, 9.3
+decode_attn_3_mid_subword, 9.9, 9
