@@ -40,7 +40,9 @@ class ESPnetASRModel(AbsESPnetModel):
     def __init__(
         self,
         vocab_size: int,
+        phone_vocab_size: int,
         token_list: Union[Tuple[str, ...], List[str]],
+        phone_token_list: Union[Tuple[str, ...], List[str]],
         frontend: Optional[AbsFrontend],
         specaug: Optional[AbsSpecAug],
         normalize: Optional[AbsNormalize],
@@ -49,10 +51,12 @@ class ESPnetASRModel(AbsESPnetModel):
         postencoder: Optional[AbsPostEncoder],
         decoder: Optional[AbsDecoder],
         ctc: CTC,
+        phone_ctc: CTC,
         joint_network: Optional[torch.nn.Module],
         aux_ctc: dict = None,
         ctc_weight: float = 0.5,
         interctc_weight: float = 0.0,
+        phoneme_layer_idx: List[int] = [],
         ignore_id: int = -1,
         lsm_weight: float = 0.0,
         length_normalized_loss: bool = False,
@@ -80,20 +84,36 @@ class ESPnetASRModel(AbsESPnetModel):
             self.blank_id = token_list.index(sym_blank)
         else:
             self.blank_id = 0
+        if sym_blank in phone_token_list:
+            self.phone_blank_id = phone_token_list.index(sym_blank)
+        else:
+            self.phone_blank_id = 0
         if sym_sos in token_list:
             self.sos = token_list.index(sym_sos)
         else:
             self.sos = vocab_size - 1
+        if sym_sos in phone_token_list:
+            self.phone_sos = phone_token_list.index(sym_sos)
+        else:
+            self.phone_sos = phone_vocab_size - 1
         if sym_eos in token_list:
             self.eos = token_list.index(sym_eos)
         else:
             self.eos = vocab_size - 1
+        if sym_eos in phone_token_list:
+            self.phone_eos = phone_token_list.index(sym_eos)
+        else:
+            self.phone_eos = phone_vocab_size - 1
+        
         self.vocab_size = vocab_size
+        self.phone_vocab_size = phone_vocab_size
         self.ignore_id = ignore_id
         self.ctc_weight = ctc_weight
         self.interctc_weight = interctc_weight
+        self.phoneme_layer_idx = phoneme_layer_idx
         self.aux_ctc = aux_ctc
         self.token_list = token_list.copy()
+        self.phone_token_list = phone_token_list.copy()
 
         self.frontend = frontend
         self.specaug = specaug
@@ -108,10 +128,15 @@ class ESPnetASRModel(AbsESPnetModel):
             self.encoder.conditioning_layer = torch.nn.Linear(
                 vocab_size, self.encoder.output_size()
             )
+        if self.encoder.interctc_use_conditioning and len(phoneme_layer_idx) > 0:
+            self.encoder.conditioning_layer_phn = torch.nn.Linear(
+                phone_vocab_size, self.encoder.output_size()
+            )
 
         self.use_transducer_decoder = joint_network is not None
 
         self.error_calculator = None
+        self.phone_error_calculator = None
 
         if self.use_transducer_decoder:
             self.decoder = decoder
@@ -155,6 +180,9 @@ class ESPnetASRModel(AbsESPnetModel):
                     self.error_calculator = ErrorCalculator(
                         token_list, sym_space, sym_blank, report_cer, report_wer
                     )
+                    self.phone_error_calculator = ErrorCalculator(
+                        phone_token_list, sym_space, sym_blank, report_cer, report_wer
+                    )
         else:
             # we set self.decoder = None in the CTC mode since
             # self.decoder parameters were never used and PyTorch complained
@@ -181,11 +209,19 @@ class ESPnetASRModel(AbsESPnetModel):
                 self.error_calculator = ErrorCalculator(
                     token_list, sym_space, sym_blank, report_cer, report_wer
                 )
+                self.phone_error_calculator = ErrorCalculator(
+                    phone_token_list, sym_space, sym_blank, report_cer, report_wer
+                )
 
         if ctc_weight == 0.0:
             self.ctc = None
         else:
             self.ctc = ctc
+        
+        if len(phoneme_layer_idx) > 0:
+            self.phone_ctc = phone_ctc
+        else:
+            self.phone_ctc = None
 
         self.extract_feats_in_collect_stats = extract_feats_in_collect_stats
 
@@ -207,6 +243,8 @@ class ESPnetASRModel(AbsESPnetModel):
         speech_lengths: torch.Tensor,
         text: torch.Tensor,
         text_lengths: torch.Tensor,
+        phoneme: torch.Tensor,
+        phoneme_lengths: torch.Tensor,
         **kwargs,
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], torch.Tensor]:
         """Frontend + Encoder + Decoder + Calc loss
@@ -232,6 +270,7 @@ class ESPnetASRModel(AbsESPnetModel):
 
         # for data-parallel
         text = text[:, : text_lengths.max()]
+        phoneme = phoneme[:, : phoneme_lengths.max()]
 
         # 1. Encoder
         encoder_out, encoder_out_lens = self.encode(speech, speech_lengths)
@@ -242,6 +281,7 @@ class ESPnetASRModel(AbsESPnetModel):
 
         loss_att, acc_att, cer_att, wer_att = None, None, None, None
         loss_ctc, cer_ctc = None, None
+        phone_loss_ctc, phone_cer_ctc = None, None
         loss_transducer, cer_transducer, wer_transducer = None, None, None
         stats = dict()
 
@@ -257,7 +297,7 @@ class ESPnetASRModel(AbsESPnetModel):
 
         # Intermediate CTC (optional)
         loss_interctc = 0.0
-        if self.interctc_weight != 0.0 and intermediate_outs is not None:
+        if self.interctc_weight != 0.0 and intermediate_outs is not None and len(intermediate_outs) > 1:
             for layer_idx, intermediate_out in intermediate_outs:
                 # we assume intermediate_out has the same length & padding
                 # as those of encoder_out
@@ -283,9 +323,14 @@ class ESPnetASRModel(AbsESPnetModel):
                                 "Aux. CTC tasks were specified but no data was found"
                             )
                 if loss_ic is None:
-                    loss_ic, cer_ic = self._calc_ctc_loss(
-                        intermediate_out, encoder_out_lens, text, text_lengths
-                    )
+                    if layer_idx in self.phoneme_layer_idx:
+                        loss_ic, cer_ic = self._calc_phone_ctc_loss(
+                            intermediate_out, encoder_out_lens, phoneme, phoneme_lengths
+                        )
+                    else:
+                        loss_ic, cer_ic = self._calc_ctc_loss(
+                            intermediate_out, encoder_out_lens, text, text_lengths
+                        )
                 loss_interctc = loss_interctc + loss_ic
 
                 # Collect Intermedaite CTC stats
@@ -394,7 +439,7 @@ class ESPnetASRModel(AbsESPnetModel):
         # -> encoder_out: (Batch, Length2, Dim2)
         if self.encoder.interctc_use_conditioning:
             encoder_out, encoder_out_lens, _ = self.encoder(
-                feats, feats_lengths, ctc=self.ctc
+                feats, feats_lengths, ctc=self.ctc, ctc_phn=self.phone_ctc
             )
         else:
             encoder_out, encoder_out_lens, _ = self.encoder(feats, feats_lengths)
@@ -590,6 +635,23 @@ class ESPnetASRModel(AbsESPnetModel):
             cer_ctc = self.error_calculator(ys_hat.cpu(), ys_pad.cpu(), is_ctc=True)
         return loss_ctc, cer_ctc
 
+    def _calc_phone_ctc_loss(
+        self,
+        encoder_out: torch.Tensor,
+        encoder_out_lens: torch.Tensor,
+        ys_pad: torch.Tensor,
+        ys_pad_lens: torch.Tensor,
+    ):
+        # Calc CTC loss
+        phone_loss_ctc = self.phone_ctc(encoder_out, encoder_out_lens, ys_pad, ys_pad_lens)
+
+        # Calc CER using CTC
+        phone_cer_ctc = None
+        if not self.training and self.phone_error_calculator is not None:
+            ys_hat = self.phone_ctc.argmax(encoder_out).data
+            phone_cer_ctc = self.phone_error_calculator(ys_hat.cpu(), ys_pad.cpu(), is_ctc=True)
+        return phone_loss_ctc, phone_cer_ctc
+
     def _calc_transducer_loss(
         self,
         encoder_out: torch.Tensor,
@@ -669,4 +731,39 @@ class ESPnetASRModel(AbsESPnetModel):
         self.ctc.reduce = False
         loss_ctc = self.ctc(encoder_out, encoder_out_lens, text, text_lengths)
         self.ctc.reduce = do_reduce
+        return loss_ctc
+
+    def _calc_batch_phone_ctc_loss(
+        self,
+        speech: torch.Tensor,
+        speech_lengths: torch.Tensor,
+        phoneme: torch.Tensor,
+        phoneme_lengths: torch.Tensor,
+    ):
+        if self.phone_ctc is None:
+            return
+        assert phoneme_lengths.dim() == 1, phoneme_lengths.shape
+        # Check that batch_size is unified
+        assert (
+            speech.shape[0]
+            == speech_lengths.shape[0]
+            == phoneme.shape[0]
+            == phoneme_lengths.shape[0]
+        ), (speech.shape, speech_lengths.shape, phoneme.shape, phoneme_lengths.shape)
+
+        # for data-parallel
+        phoneme = phoneme[:, : phoneme_lengths.max()]
+
+        # 1. Encoder
+        encoder_out, encoder_out_lens = self.encode(speech, speech_lengths)
+        if isinstance(encoder_out, tuple):
+            encoder_out = encoder_out[0]
+
+        # Calc CTC loss
+        do_reduce = self.phone_ctc.reduce
+        self.phone_ctc.reduce = False
+        loss_ctc = self.phone_ctc(
+            encoder_out, encoder_out_lens, phoneme, phoneme_lengths
+        )
+        self.phone_ctc.reduce = do_reduce
         return loss_ctc

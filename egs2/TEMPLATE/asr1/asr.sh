@@ -161,6 +161,8 @@ asr_speech_fold_length=800 # fold_length for speech data during ASR training.
 asr_text_fold_length=150   # fold_length for text data during ASR training.
 lm_fold_length=150         # fold_length for LM training.
 
+phone_nlsyms_txt=none # Non-linguistic symbol list for phone if existing.
+
 help_message=$(cat << EOF
 Usage: $0 --train-set "<train_set_name>" --valid-set "<valid_set_name>" --test_sets "<test_set_names>"
 
@@ -356,6 +358,11 @@ else
         ref_text_names_str+="text_spk${n} "
     done
 fi
+
+# For phn, text file path and name are text_aux and text_phone
+ref_text_files_str+="phoneme "
+ref_text_names_str+="phoneme "
+
 # shellcheck disable=SC2206
 ref_text_files=(${ref_text_files_str// / })
 # shellcheck disable=SC2206
@@ -386,6 +393,7 @@ bpeprefix="${bpedir}"/bpe
 bpemodel="${bpeprefix}".model
 bpetoken_list="${bpedir}"/tokens.txt
 chartoken_list="${token_listdir}"/char/tokens.txt
+phonetonken_list="${token_listdir}"/phone/tokens.txt ## ADD by Hojo
 hugging_face_token_list="${token_listdir}/hugging_face_"${hugging_face_model_name_or_path/\//-}/tokens.txt
 # NOTE: keep for future development.
 # shellcheck disable=SC2034
@@ -1256,7 +1264,9 @@ if [ ${stage} -le 10 ] && [ ${stop_stage} -ge 10 ] && ! [[ " ${skip_stages} " =~
             --bpemodel "${bpemodel}" \
             --token_type "${token_type}" \
             --token_list "${token_list}" \
+            --phone_token_list "${phonetonken_list}" \
             --non_linguistic_symbols "${nlsyms_txt}" \
+            --phone_non_linguistic_symbols "${phone_nlsyms_txt}" \
             --cleaner "${cleaner}" \
             --g2p "${g2p}" \
             --train_shape_file "${_logdir}/train.JOB.scp" \
@@ -1410,7 +1420,9 @@ if [ ${stage} -le 11 ] && [ ${stop_stage} -ge 11 ] && ! [[ " ${skip_stages} " =~
             --bpemodel "${bpemodel}" \
             --token_type "${token_type}" \
             --token_list "${token_list}" \
+            --phone_token_list "${phonetonken_list}" \
             --non_linguistic_symbols "${nlsyms_txt}" \
+            --phone_non_linguistic_symbols "${phone_nlsyms_txt}" \
             --cleaner "${cleaner}" \
             --g2p "${g2p}" \
             --valid_data_path_and_name_and_type "${_asr_valid_dir}/${_scp},speech,${_type}" \

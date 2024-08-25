@@ -246,6 +246,12 @@ class ASRTask(AbsTask):
             help="A text mapping int-id to token",
         )
         group.add_argument(
+            "--phone_token_list",
+            type=str_or_none,
+            default=None,
+            help="A text mapping int-id to token",
+        )
+        group.add_argument(
             "--init",
             type=lambda x: str_or_none(x.lower()),
             default=None,
@@ -310,6 +316,11 @@ class ASRTask(AbsTask):
         )
         parser.add_argument(
             "--non_linguistic_symbols",
+            type=str_or_none,
+            help="non_linguistic_symbols file path",
+        )
+        parser.add_argument(
+            "--phone_non_linguistic_symbols",
             type=str_or_none,
             help="non_linguistic_symbols file path",
         )
@@ -420,8 +431,10 @@ class ASRTask(AbsTask):
                 train=train,
                 token_type=args.token_type,
                 token_list=args.token_list,
+                phone_token_list=args.phone_token_list,
                 bpemodel=args.bpemodel,
                 non_linguistic_symbols=args.non_linguistic_symbols,
+                phone_non_linguistic_symbols=args.phone_non_linguistic_symbols,
                 text_cleaner=args.cleaner,
                 g2p_type=args.g2p,
                 # NOTE(kamo): Check attribute existence for backward compatibility
@@ -445,7 +458,7 @@ class ASRTask(AbsTask):
         cls, train: bool = True, inference: bool = False
     ) -> Tuple[str, ...]:
         if not inference:
-            retval = ("speech", "text")
+            retval = ("speech", "text", "phoneme")
         else:
             # Recognition mode
             retval = ("speech",)
@@ -470,11 +483,15 @@ class ASRTask(AbsTask):
         if isinstance(args.token_list, str):
             with open(args.token_list, encoding="utf-8") as f:
                 token_list = [line.rstrip() for line in f]
+            with open(args.phone_token_list, encoding="utf-8") as f:
+                phone_token_list = [line.rstrip() for line in f]
 
             # Overwriting token_list to keep it as "portable".
             args.token_list = list(token_list)
+            args.phone_token_list = list(phone_token_list)
         elif isinstance(args.token_list, (tuple, list)):
             token_list = list(args.token_list)
+            phone_token_list = list(args.phone_token_list)
         else:
             raise RuntimeError("token_list must be str or list")
 
@@ -488,8 +505,20 @@ class ASRTask(AbsTask):
                     token_list.insert(blank_idx, f"<blank{dur}>")
             args.token_list = token_list
 
+            # phoneme
+            sym_blank = args.model_conf.get("sym_blank", "<blank>")
+            blank_idx = phone_token_list.index(sym_blank)
+            for dur in args.model_conf.get("transducer_multi_blank_durations"):
+                if (
+                    f"<blank{dur}>" not in phone_token_list
+                ):  # avoid this during inference
+                    phone_token_list.insert(blank_idx, f"<blank{dur}>")
+            args.phone_token_list = phone_token_list
+
         vocab_size = len(token_list)
+        phone_vocab_size = len(phone_token_list)
         logging.info(f"Vocabulary size: {vocab_size }")
+        logging.info(f"Phoneme's vocabulary size: {phone_vocab_size }")
 
         # 1. frontend
         if args.input_size is None:
@@ -575,6 +604,9 @@ class ASRTask(AbsTask):
         ctc = CTC(
             odim=vocab_size, encoder_output_size=encoder_output_size, **args.ctc_conf
         )
+        phone_ctc = CTC(
+            odim=phone_vocab_size, encoder_output_size=encoder_output_size, **args.ctc_conf
+        )
 
         # 7. Build model
         try:
@@ -583,6 +615,7 @@ class ASRTask(AbsTask):
             model_class = model_choices.get_class("espnet")
         model = model_class(
             vocab_size=vocab_size,
+            phone_vocab_size=phone_vocab_size,
             frontend=frontend,
             specaug=specaug,
             normalize=normalize,
@@ -591,8 +624,10 @@ class ASRTask(AbsTask):
             postencoder=postencoder,
             decoder=decoder,
             ctc=ctc,
+            phone_ctc=phone_ctc,
             joint_network=joint_network,
             token_list=token_list,
+            phone_token_list=phone_token_list,
             **args.model_conf,
         )
 

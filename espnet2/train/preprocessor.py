@@ -139,12 +139,14 @@ class CommonPreprocessor(AbsPreprocessor):
         train: bool,
         token_type: str = None,
         token_list: Union[Path, str, Iterable[str]] = None,
+        phone_token_list: Union[Path, str, Iterable[str]] = None,
         bpemodel: Union[Path, str, Iterable[str]] = None,
         text_cleaner: Collection[str] = None,
         g2p_type: str = None,
         unk_symbol: str = "<unk>",
         space_symbol: str = "<space>",
         non_linguistic_symbols: Union[Path, str, Iterable[str]] = None,
+        phone_non_linguistic_symbols: Union[Path, str, Iterable[str]] = None,
         delimiter: str = None,
         rir_scp: str = None,
         rir_apply_prob: float = 1.0,
@@ -156,6 +158,7 @@ class CommonPreprocessor(AbsPreprocessor):
         speech_volume_normalize: float = None,
         speech_name: str = "speech",
         text_name: str = "text",
+        phoneme_name: str = "phoneme",
         fs: int = 0,
         nonsplit_symbol: Iterable[str] = None,
         data_aug_effects: List = None,
@@ -169,6 +172,7 @@ class CommonPreprocessor(AbsPreprocessor):
         self.train = train
         self.speech_name = speech_name
         self.text_name = text_name
+        self.phoneme_name = phoneme_name
         self.speech_volume_normalize = speech_volume_normalize
         self.rir_apply_prob = rir_apply_prob
         self.noise_apply_prob = noise_apply_prob
@@ -191,6 +195,12 @@ class CommonPreprocessor(AbsPreprocessor):
                 whisper_language=whisper_language,
                 whisper_task=whisper_task,
             )
+            self.phone_tokenizer = build_tokenizer(
+                token_type="word",
+                delimiter=" ",
+                non_linguistic_symbols=phone_non_linguistic_symbols,
+                remove_non_linguistic_symbols=False,
+            )
             if token_type == "hugging_face":
                 self.token_id_converter = HuggingFaceTokenIDConverter(
                     model_name_or_path=bpemodel
@@ -199,6 +209,10 @@ class CommonPreprocessor(AbsPreprocessor):
                 self.token_id_converter = TokenIDConverter(
                     token_list=token_list,
                     unk_symbol=unk_symbol,
+                )
+                self.phone_token_id_converter = TokenIDConverter(
+                token_list=phone_token_list,
+                unk_symbol=unk_symbol,
                 )
             else:
                 self.token_id_converter = OpenAIWhisperTokenIDConverter(
@@ -209,7 +223,9 @@ class CommonPreprocessor(AbsPreprocessor):
         else:
             self.text_cleaner = None
             self.tokenizer = None
+            self.phone_tokenizer = None
             self.token_id_converter = None
+            self.phone_token_id_converter = None
 
         if train and rir_scp is not None:
             self.rirs = []
@@ -422,6 +438,20 @@ class CommonPreprocessor(AbsPreprocessor):
                     "Please ensure that the data processing is correct and verify it."
                 )
             data[self.text_name] = np.array(text_ints, dtype=np.int64)
+        if self.phoneme_name in data and self.phone_tokenizer is not None:
+            text = data[self.phoneme_name]
+            if isinstance(text, np.ndarray):
+                return data
+            text = self.text_cleaner(text)
+            tokens = self.phone_tokenizer.text2tokens(text)
+            text_ints = self.phone_token_id_converter.tokens2ids(tokens)
+            if len(text_ints) > 500:
+                logging.warning(
+                    "The length of the text output exceeds 500, "
+                    "which may cause OOM on the GPU."
+                    "Please ensure that the data processing is correct and verify it."
+                )
+            data[self.phoneme_name] = np.array(text_ints, dtype=np.int64)
         if self.aux_task_names is not None and self.tokenizer is not None:
             for name in self.aux_task_names:
                 if name in data:
