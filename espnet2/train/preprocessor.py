@@ -663,6 +663,7 @@ class MutliTokenizerCommonPreprocessor(CommonPreprocessor):
         noise_apply_prob: float = 1.0,
         noise_db_range: str = "3_10",
         short_noise_thres: float = 0.5,
+        aux_task_names: Collection[str] = None,
         speech_volume_normalize: float = None,
         speech_name: str = "speech",
         text_name: List[str] = ["text"],
@@ -675,6 +676,11 @@ class MutliTokenizerCommonPreprocessor(CommonPreprocessor):
         whisper_language: List[str] = None,
         whisper_task: str = None,
     ):
+        token_type = token_type if isinstance(token_type, list) else token_type.split()
+        token_list = token_list if isinstance(token_list, list) else token_list.split()
+        bpemodel = bpemodel if isinstance(bpemodel, list) else bpemodel.split()
+        g2p_type = g2p_type if isinstance(g2p_type, list) else g2p_type.split()
+
         # TODO(jiatong): sync with Kamo and Jing on interface for preprocessor
         super().__init__(
             train=train,
@@ -765,14 +771,25 @@ class MutliTokenizerCommonPreprocessor(CommonPreprocessor):
     def _text_process(
         self, data: Dict[str, Union[str, np.ndarray]]
     ) -> Dict[str, np.ndarray]:
-        for i in range(self.num_tokenizer):
-            text_name = self.text_name[i]
-            if text_name in data and self.tokenizer[i] is not None:
-                text = data[text_name]
-                text = self.text_cleaner(text)
-                tokens = self.tokenizer[i].text2tokens(text)
-                text_ints = self.token_id_converter[i].tokens2ids(tokens)
-                data[text_name] = np.array(text_ints, dtype=np.int64)
+        # text = data[self.text_name[0]]
+        # text = self.text_cleaner(text)
+        # for i in range(self.num_tokenizer):
+        #     text_name = self.text_name[i]
+        #     if text_name in data and self.tokenizer[i] is not None:
+        #         tokens = self.tokenizer[i].text2tokens(text)
+        #         text_ints = self.token_id_converter[i].tokens2ids(tokens)
+        #         data[text_name] = np.array(text_ints, dtype=np.int64)
+        
+        text = data[self.text_name[0]]
+        text = self.text_cleaner(text)
+        tokens = self.tokenizer[0].text2tokens(text)
+        text_ints = self.token_id_converter[0].tokens2ids(tokens)
+        data[self.text_name[0]] = np.array(text_ints, dtype=np.int64)
+
+        tokens = self.tokenizer[1].text2tokens(text)
+        text_ints = self.token_id_converter[1].tokens2ids(tokens)
+        data[self.text_name[1]] = np.array(text_ints, dtype=np.int64)
+        
         assert check_return_type(data)
         return data
 

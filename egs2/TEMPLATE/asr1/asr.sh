@@ -164,8 +164,8 @@ lm_fold_length=150         # fold_length for LM training.
 ## ADD by Hojo ######################################################
 char_nlsyms_txt=none  # Non-linguistic symbol list for char if existing.
 phone_nlsyms_txt=none # Non-linguistic symbol list for phone if existing.
-pre_phonemize=true   # Whether to phonemize before tokenization.
-train_with_phoneme=true
+pre_phonemize=false   # Whether to phonemize before tokenization.
+train_with_phoneme=false
 asr_model=asrp
 #######################################################################
 
@@ -426,6 +426,11 @@ elif [ "${token_type}" = whisper_multilingual ]; then
 elif [ "${token_type}" = hugging_face ]; then
     token_list="${hugging_face_token_list}"
     bpemodel=${hugging_face_model_name_or_path}
+elif [ "${token_type}" = phn ]; then
+    token_type=("bpe" "phn")
+    token_list=("${bpetoken_list}" "${phonetonken_list}")
+    bpemodel=("${bpemodel}" "${bpemodel}")
+    g2p=("${g2p}" "${g2p}")
 else
     log "Error: not supported --token_type '${token_type}'"
     exit 2
@@ -590,7 +595,7 @@ if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ] && ! [[ " ${skip_stages} " =~ [
 
     if [ ${pre_phonemize} ]; then
         # ${python} -m pip install mecab-python3
-        ${python} -m pip install pyopenjtalk
+        # ${python} -m pip install pyopenjtalk
         all_dsite="${train_set} ${valid_set} ${test_sets}"
         error_path="data/errors"
         rm -f ${error_path}
@@ -1339,6 +1344,9 @@ if [ ${stage} -le 10 ] && [ ${stop_stage} -ge 10 ] && ! [[ " ${skip_stages} " =~
         _opts+="--valid_data_path_and_name_and_type ${_asr_valid_dir}/${ref_text_files[$i]},${ref_text_names[$i]},text "
     done
 
+    # echo "token_type: ${token_type[@]}"
+    # echo "token_list: ${token_list[@]}"
+    # exit 2
     if "${train_with_phoneme}"; then
         # shellcheck disable=SC2046,SC2086
         ${train_cmd} JOB=1:"${_nj}" "${_logdir}"/stats.JOB.log \
@@ -1365,12 +1373,12 @@ if [ ${stage} -le 10 ] && [ ${stop_stage} -ge 10 ] && ! [[ " ${skip_stages} " =~
             ${python} -m espnet2.bin.${asr_task}_train \
                 --collect_stats true \
                 --use_preprocessor true \
-                --bpemodel "${bpemodel}" \
-                --token_type "${token_type}" \
-                --token_list "${token_list}" \
+                --bpemodel "${bpemodel[@]}" \
+                --token_type "${token_type[@]}" \
+                --token_list "${token_list[@]}" \
                 --non_linguistic_symbols "${nlsyms_txt}" \
                 --cleaner "${cleaner}" \
-                --g2p "${g2p}" \
+                --g2p "${g2p[@]}" \
                 --train_shape_file "${_logdir}/train.JOB.scp" \
                 --valid_shape_file "${_logdir}/valid.JOB.scp" \
                 --output_dir "${_logdir}/stats.JOB" \
@@ -1510,6 +1518,8 @@ if [ ${stage} -le 11 ] && [ ${stop_stage} -ge 11 ] && ! [[ " ${skip_stages} " =~
         jobname="${asr_exp}/train.log"
     fi
 
+    # echo "${token_list[@]}"
+    # exit 2
     if "${train_with_phoneme}"; then
         # shellcheck disable=SC2086
         ${python} -m espnet2.bin.launch \
@@ -1550,12 +1560,12 @@ if [ ${stage} -le 11 ] && [ ${stop_stage} -ge 11 ] && ! [[ " ${skip_stages} " =~
             --multiprocessing_distributed true -- \
             ${python} -m espnet2.bin.${asr_task}_train \
                 --use_preprocessor true \
-                --bpemodel "${bpemodel}" \
-                --token_type "${token_type}" \
-                --token_list "${token_list}" \
+                --bpemodel "${bpemodel[@]}" \
+                --token_type "${token_type[@]}" \
+                --token_list "${token_list[@]}" \
                 --non_linguistic_symbols "${nlsyms_txt}" \
                 --cleaner "${cleaner}" \
-                --g2p "${g2p}" \
+                --g2p "${g2p[@]}" \
                 --valid_data_path_and_name_and_type "${_asr_valid_dir}/${_scp},speech,${_type}" \
                 --valid_shape_file "${asr_stats_dir}/valid/speech_shape" \
                 --resume true \
@@ -1711,15 +1721,15 @@ if [ ${stage} -le 12 ] && [ ${stop_stage} -ge 12 ] && ! [[ " ${skip_stages} " =~
                     ${_opts} ${inference_args} || { cat $(grep -l -i error "${_logdir}"/asr_inference.*.log) ; exit 1; }
         else
             ${_cmd} --gpu "${_ngpu}" JOB=1:"${_nj}" "${_logdir}"/asr_inference.JOB.log \
-            ${python} -m espnet2.bin.${asr_task}_inference${inference_bin_tag} \
-                --batch_size ${batch_size} \
-                --ngpu "${_ngpu}" \
-                --data_path_and_name_and_type "${_data}/${_scp},speech,${_type}" \
-                --key_file "${_logdir}"/keys.JOB.scp \
-                --asr_train_config "${asr_exp}"/config.yaml \
-                --asr_model_file "${asr_exp}"/"${inference_asr_model}" \
-                --output_dir "${_logdir}"/output.JOB \
-                ${_opts} ${inference_args} || { cat $(grep -l -i error "${_logdir}"/asr_inference.*.log) ; exit 1; }
+                ${python} -m espnet2.bin.${asr_task}_inference${inference_bin_tag} \
+                    --batch_size ${batch_size} \
+                    --ngpu "${_ngpu}" \
+                    --data_path_and_name_and_type "${_data}/${_scp},speech,${_type}" \
+                    --key_file "${_logdir}"/keys.JOB.scp \
+                    --asr_train_config "${asr_exp}"/config.yaml \
+                    --asr_model_file "${asr_exp}"/"${inference_asr_model}" \
+                    --output_dir "${_logdir}"/output.JOB \
+                    ${_opts} ${inference_args} || { cat $(grep -l -i error "${_logdir}"/asr_inference.*.log) ; exit 1; }
         fi
 
         # 3. Calculate and report RTF based on decoding logs

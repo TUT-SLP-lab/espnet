@@ -18,6 +18,7 @@ from espnet.nets.pytorch_backend.transformer.attention import (
     LegacyRelPositionMultiHeadedAttention,
     MultiHeadedAttention,
     RelPositionMultiHeadedAttention,
+    MultiHeadAttention_frame,
 )
 from espnet.nets.pytorch_backend.transformer.embedding import (
     LegacyRelPositionalEncoding,
@@ -106,6 +107,9 @@ class ConformerEncoder(AbsEncoder):
         padding_idx: int = -1,
         interctc_layer_idx: List[int] = [],
         interctc_use_conditioning: bool = False,
+        use_all_layers_loss: bool = False,
+        decode_all_layers: bool = False,
+        divide_layer: int = 9,
         stochastic_depth_rate: Union[float, List[float]] = 0.0,
         layer_drop_rate: float = 0.0,
         max_pos_emb_len: int = 5000,
@@ -293,6 +297,16 @@ class ConformerEncoder(AbsEncoder):
             assert 0 < min(interctc_layer_idx) and max(interctc_layer_idx) < num_blocks
         self.interctc_use_conditioning = interctc_use_conditioning
         self.conditioning_layer = None
+        self.conditioning_layer_phn = None
+
+        if use_all_layers_loss or decode_all_layers:
+            self.multihead_attn_low = MultiHeadAttention_frame(attention_heads, output_size, dropout_rate)
+            self.multihead_attn_upp = MultiHeadAttention_frame(attention_heads, output_size, dropout_rate)
+
+        self.use_all_layers_loss  = use_all_layers_loss
+        self.decode_all_layers = decode_all_layers
+        self.num_blocks = num_blocks
+        self.divide_layer = divide_layer
 
     def output_size(self) -> int:
         return self._output_size
@@ -303,6 +317,7 @@ class ConformerEncoder(AbsEncoder):
         ilens: torch.Tensor,
         prev_states: torch.Tensor = None,
         ctc: CTC = None,
+        ctc_phn: CTC = None,
         return_all_hs: bool = False,
     ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
         """Calculate forward propagation.
@@ -342,7 +357,56 @@ class ConformerEncoder(AbsEncoder):
             xs_pad = self.embed(xs_pad)
 
         intermediate_outs = []
-        if len(self.interctc_layer_idx) == 0:
+        if self.use_all_layers_loss:
+            mid = self.divide_layer
+            lower_layers = []
+            upper_layers = []
+
+            for layer_idx, encoder_layer in enumerate(self.encoders):
+                xs_pad, masks = encoder_layer(xs_pad, masks)
+
+                if isinstance(xs_pad, tuple):
+                    x, pos_emb = xs_pad
+                else:
+                    x, pos_emb = xs_pad, None
+
+                if layer_idx < mid:
+                    lower_layers.append(x)
+
+                    if layer_idx == mid - 1:
+                        if self.conditioning_layer_phn is not None:
+                            ctc_out_mid = ctc_phn.softmax(self.after_norm(x))
+                            xs_pad_mid = self.conditioning_layer_phn(ctc_out_mid)
+                            mid_query = xs_pad_mid.unsqueeze(2) # (B, T, 1, D)
+                        else:
+                            mid_query = x.unsqueeze(2)
+
+                        lower_tensor = torch.stack(lower_layers, dim=2) # (B, T, L, D)
+                        lower_ct = self.multihead_attn_low(mid_query, lower_tensor, lower_tensor) # (B, T, D)
+                        
+                        if self.decode_all_layers:
+                            x = lower_ct
+                else:
+                    upper_layers.append(x)
+
+                    if layer_idx == self.num_blocks - 1:
+                        if self.interctc_use_conditioning is not None:
+                            ctc_out_final = ctc.softmax(self.after_norm(x))
+                            xs_pad_final = self.conditioning_layer(ctc_out_final)
+                            final_query = xs_pad_final.unsqueeze(2) # (B, T, 1, D)
+                        else:
+                            final_query = x.unsqueeze(2)
+                        
+                        upper_tensor = torch.stack(upper_layers, dim=2) # (B, T, L, D)
+                        upper_ct = self.multihead_attn_upp(final_query, upper_tensor, upper_tensor)
+                        
+                        if self.decode_all_layers:
+                            x = upper_ct
+                
+                # xs_pad = (x, pos_emb) if pos_emb is not None else x
+            
+            intermediate_outs = [(self.num_blocks + 1, lower_ct), (self.num_blocks + 2, upper_ct)]
+        elif len(self.interctc_layer_idx) == 0:
             for layer_idx, encoder_layer in enumerate(self.encoders):
                 xs_pad, masks = encoder_layer(xs_pad, masks)
                 if return_all_hs:

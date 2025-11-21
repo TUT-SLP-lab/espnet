@@ -81,6 +81,7 @@ from espnet2.train.preprocessor import (
     AbsPreprocessor,
     CommonPreprocessor,
     CommonPreprocessor_multi,
+    MutliTokenizerCommonPreprocessor,
 )
 from espnet2.train.trainer import Trainer
 from espnet2.utils.get_default_kwargs import get_default_kwargs
@@ -195,6 +196,7 @@ preprocessor_choices = ClassChoices(
     classes=dict(
         default=CommonPreprocessor,
         multi=CommonPreprocessor_multi,
+        multi_tokenizer=MutliTokenizerCommonPreprocessor,
     ),
     type_check=AbsPreprocessor,
     default="default",
@@ -243,6 +245,7 @@ class ASRTask(AbsTask):
             "--token_list",
             type=str_or_none,
             default=None,
+            nargs="+",
             help="A text mapping int-id to token",
         )
         group.add_argument(
@@ -300,12 +303,14 @@ class ASRTask(AbsTask):
                 "whisper_en",
                 "whisper_multilingual",
             ],
+            nargs="+",
             help="The text will be tokenized " "in the specified level token",
         )
         group.add_argument(
             "--bpemodel",
             type=str_or_none,
             default=None,
+            nargs="+",
             help="The model file of sentencepiece",
         )
         parser.add_argument(
@@ -332,6 +337,7 @@ class ASRTask(AbsTask):
             type=str_or_none,
             choices=g2p_choices,
             default=None,
+            nargs="+",
             help="Specify g2p method if --token_type=phn",
         )
         group.add_argument(
@@ -406,6 +412,14 @@ class ASRTask(AbsTask):
         cls, args: argparse.Namespace, train: bool
     ) -> Optional[Callable[[str, Dict[str, np.array]], Dict[str, np.ndarray]]]:
         assert check_argument_types()
+
+        if args.token_type and len(args.token_type) == 1:
+            args.token_type = args.token_type[0]
+        if args.bpemodel and len(args.bpemodel) == 1:
+            args.bpemodel = args.bpemodel[0]
+        if args.g2p and len(args.g2p) == 1:
+            args.g2p = args.g2p[0]
+
         if args.use_preprocessor:
             try:
                 _ = getattr(args, "preprocessor")
@@ -467,16 +481,43 @@ class ASRTask(AbsTask):
     @classmethod
     def build_model(cls, args: argparse.Namespace) -> ESPnetASRModel:
         assert check_argument_types()
-        if isinstance(args.token_list, str):
-            with open(args.token_list, encoding="utf-8") as f:
-                token_list = [line.rstrip() for line in f]
-
-            # Overwriting token_list to keep it as "portable".
-            args.token_list = list(token_list)
-        elif isinstance(args.token_list, (tuple, list)):
-            token_list = list(args.token_list)
+        
+        # if args.token_list and len(args.token_list) == 1:
+        #     args.token_list = args.token_list[0]
+        # print(args.token_list)
+        new_token_list = []
+        if args.token_list[0] == "<blank>":
+            new_token_list = list(args.token_list)
+        elif isinstance(args.token_list[0], str):
+            if len(args.token_list) > 1:
+                for token_list in args.token_list:
+                    with open(token_list, encoding="utf-8") as f:
+                        new_token_list.append([line.rstrip() for line in f])
+            else:
+                args.token_list = args.token_list[0]
+                with open(args.token_list, encoding="utf-8") as f:
+                    new_token_list = [line.rstrip() for line in f]
+        elif isinstance(args.token_list[0], (tuple, list)):
+            for token_list in args.token_list:
+                new_token_list.append(list(token_list))
         else:
             raise RuntimeError("token_list must be str or list")
+
+        # Overwriting token_list to keep it as "portable".
+        args.token_list = new_token_list
+        token_list = new_token_list
+
+        # if isinstance(args.token_list, str):
+        #     with open(args.token_list, encoding="utf-8") as f:
+        #         token_list = [line.rstrip() for line in f]
+
+        #     # Overwriting token_list to keep it as "portable".
+        #     args.token_list = list(token_list)
+        # elif isinstance(args.token_list, (tuple, list)):
+        #     token_list = list(args.token_list)
+        # else:
+        #     raise RuntimeError("token_list must be str or list")
+
 
         # If use multi-blank transducer criterion,
         # big blank symbols are added just before the standard blank
@@ -488,8 +529,15 @@ class ASRTask(AbsTask):
                     token_list.insert(blank_idx, f"<blank{dur}>")
             args.token_list = token_list
 
-        vocab_size = len(token_list)
-        logging.info(f"Vocabulary size: {vocab_size }")
+        if isinstance(token_list[0], list):
+            vocab_size = []
+            for tokens in token_list:
+                _size = len(tokens)
+                logging.info(f"Vocabulary size: {_size }")
+                vocab_size.append(_size)
+        else:
+            vocab_size = len(token_list)
+            logging.info(f"Vocabulary size: {vocab_size }")
 
         # 1. frontend
         if args.input_size is None:
@@ -572,9 +620,20 @@ class ASRTask(AbsTask):
             joint_network = None
 
         # 6. CTC
-        ctc = CTC(
-            odim=vocab_size, encoder_output_size=encoder_output_size, **args.ctc_conf
-        )
+        if isinstance(vocab_size, list) and len(vocab_size) > 1:
+            ctc = []
+            for _vocab_size in vocab_size:
+                ctc.append(
+                    CTC(
+                        odim=_vocab_size,
+                        encoder_output_size=encoder_output_size,
+                        **args.ctc_conf,
+                    )
+                )
+        else:
+            ctc = CTC(
+                odim=vocab_size, encoder_output_size=encoder_output_size, **args.ctc_conf
+            )
 
         # 7. Build model
         try:

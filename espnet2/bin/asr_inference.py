@@ -359,10 +359,20 @@ class Speech2Text:
             logging.info(f"Decoding device={device}, dtype={dtype}")
 
         # 5. [Optional] Build Text converter: e.g. bpe-sym -> Text
+        if isinstance(asr_train_args.token_type, list):
+            asr_train_args.preprocessor = "default"
+            asr_train_args.preprocessor_conf = {}
+            asr_train_args.token_type = asr_train_args.token_type[0]
+            asr_train_args.g2p = asr_train_args.g2p[0]
+            asr_train_args.bpemodel = asr_train_args.bpemodel[0]
+        if isinstance(asr_train_args.token_list, list) and isinstance(asr_train_args.token_list[0], list):
+            asr_train_args.token_list = asr_train_args.token_list[0]
+        
         if token_type is None:
             token_type = asr_train_args.token_type
         if bpemodel is None:
             bpemodel = asr_train_args.bpemodel
+        
 
         # compatibility for whisper tokenizer
         preprocessor_conf = getattr(asr_train_args, "preprocessor_conf", {})

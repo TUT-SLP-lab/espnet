@@ -299,7 +299,7 @@ if [ -n "${alignment_phoneme_dir}" ]; then
 
         if [ -d "${alignment_phoneme_dir}" ]; then
             # TODO(simpleoier): This script and arguments design are specific to LibriSpeech dataset.
-            ${python} local/measure_teacher_quality.py \
+            ${python} pyscripts/feats/measure_teacher_quality.py \
                 --lab_dir "${featdir}/${feature_type}/${suffix}" \
                 --lab_name "pseudo_labels_km${nclusters}.txt" \
                 --lab_sets "${dev_set}" \

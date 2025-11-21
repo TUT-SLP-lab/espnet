@@ -132,9 +132,11 @@ class ESPnetASRModelWithPhoneme(AbsESPnetModel):
             self.encoder.conditioning_layer = torch.nn.Linear(
                 vocab_size, self.encoder.output_size()
             )
+        if self.encoder.interctc_use_conditioning and len(self.phoneme_layer_idx) > 0:
             self.encoder.conditioning_layer_phn = torch.nn.Linear(
                 phone_vocab_size, self.encoder.output_size()
             )
+            self.encoder.phoneme_layer_idx = self.phoneme_layer_idx
 
         self.use_transducer_decoder = joint_network is not None
 
@@ -221,7 +223,11 @@ class ESPnetASRModelWithPhoneme(AbsESPnetModel):
         else:
             self.ctc = ctc
         
-        self.phone_ctc = phone_ctc
+        if len(phoneme_layer_idx) > 0:
+            self.phone_ctc = phone_ctc
+        else:
+            self.phone_ctc = None
+
         self.extract_feats_in_collect_stats = extract_feats_in_collect_stats
 
         self.is_encoder_whisper = "Whisper" in type(self.encoder).__name__

@@ -19,23 +19,26 @@ def plot(log_path, xlabel, ylabel, xticks, output_path):
         
     plt.rcParams["xtick.direction"] = "in"
     plt.rcParams["ytick.direction"] = "in"
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.plot(dev, label="dev", color="black", marker="o", markersize=4)
-    plt.plot(test, label="test", color="black", marker="s", markersize=4)
-    plt.xticks(range(len(dev)), xticks)
-    plt.legend(frameon=False, ncol=2)
-    plt.savefig(output_path)
+    plt.xlabel(xlabel, fontsize=18)
+    plt.ylabel(ylabel, fontsize=18)
+    plt.plot(dev, label="dev", color="black", marker="o", markersize=8, linewidth=3)
+    plt.plot(test, label="test", color="black", marker="s", markersize=8, linewidth=3)
+    plt.gca().yaxis.set_major_formatter(plt.FormatStrFormatter('%.1f'))
+    plt.xticks(range(len(dev)), xticks, fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.legend(frameon=False, ncol=2, fontsize=15)
+    plt.savefig(output_path+".pdf")
+    plt.savefig(output_path+".png")
     plt.clf()
 
 def main():
     div_path = sys.argv[1]
     div_out = f"images/layer/{os.path.splitext(os.path.basename(div_path))[0]}"
-    plot(div_path, "Divide position", "WER (%)", range(3, 16, 3), div_out)
+    plot(div_path, "Number of lower layers", "WER (%)", range(3, 16, 3), div_out)
 
     attn_path = sys.argv[2]
     attn_out = f"images/layer/{os.path.splitext(os.path.basename(attn_path))[0]}"
-    plot(attn_path, "Number of attention module", "WER (%)", range(1, 4), attn_out)
+    plot(attn_path, "Number of attention module", "WER (%)", range(1, 5), attn_out)
 
 
 if __name__ == "__main__":
