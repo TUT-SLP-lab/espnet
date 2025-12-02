@@ -390,7 +390,7 @@ class ConformerEncoder(AbsEncoder):
                     upper_layers.append(x)
 
                     if layer_idx == self.num_blocks - 1:
-                        if self.interctc_use_conditioning is not None:
+                        if self.conditioning_layer is not None:
                             ctc_out_final = ctc.softmax(self.after_norm(x))
                             xs_pad_final = self.conditioning_layer(ctc_out_final)
                             final_query = xs_pad_final.unsqueeze(2) # (B, T, 1, D)
@@ -403,7 +403,7 @@ class ConformerEncoder(AbsEncoder):
                         if self.decode_all_layers:
                             x = upper_ct
                 
-                # xs_pad = (x, pos_emb) if pos_emb is not None else x
+                xs_pad = (x, pos_emb) if pos_emb is not None else x
             
             intermediate_outs = [(self.num_blocks + 1, lower_ct), (self.num_blocks + 2, upper_ct)]
         elif len(self.interctc_layer_idx) == 0:
