@@ -25,6 +25,7 @@ def sum_time(filepath):
             sum_sec += end - start
     
     time = calc_time(sum_sec)
+    print(sum_sec)
     print(time)
 
 def specified_time(filepath, sp_time):

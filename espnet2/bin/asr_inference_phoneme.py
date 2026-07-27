@@ -523,6 +523,24 @@ class Speech2Text:
 
         return res
 
+    def _decode_interctc_phn(
+        self, intermediate_outs: List[Tuple[int, torch.Tensor]]
+    ) -> Dict[int, List[str]]:
+        assert check_argument_types()
+
+        exclude_ids = [self.asr_model.blank_id, self.asr_model.sos, self.asr_model.eos]
+        res = {}
+        token_list = self.beam_search.token_list
+
+        for layer_idx, encoder_out in intermediate_outs:
+            y = self.asr_model.ctc.argmax(encoder_out)[0]  # batch_size = 1
+            y = [x[0] for x in groupby(y) if x[0] not in exclude_ids]
+            y = [token_list[x] for x in y]
+
+            res[layer_idx] = y
+
+        return res
+
     def _decode_single_sample(self, enc: torch.Tensor):
         if self.beam_search_transducer:
             logging.info("encoder output length: " + str(enc.shape[0]))

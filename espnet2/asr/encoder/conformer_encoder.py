@@ -404,8 +404,8 @@ class ConformerEncoder(AbsEncoder):
                             x = upper_ct
                 
                 xs_pad = (x, pos_emb) if pos_emb is not None else x
-            
             intermediate_outs = [(self.num_blocks + 1, lower_ct), (self.num_blocks + 2, upper_ct)]
+
         elif len(self.interctc_layer_idx) == 0:
             for layer_idx, encoder_layer in enumerate(self.encoders):
                 xs_pad, masks = encoder_layer(xs_pad, masks)

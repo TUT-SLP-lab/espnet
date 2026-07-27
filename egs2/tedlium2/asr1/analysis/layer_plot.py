@@ -39,6 +39,10 @@ def main():
     attn_path = sys.argv[2]
     attn_out = f"images/layer/{os.path.splitext(os.path.basename(attn_path))[0]}"
     plot(attn_path, "Number of attention module", "WER (%)", range(1, 5), attn_out)
+    
+    head_path = sys.argv[3]
+    head_out = f"images/layer/{os.path.splitext(os.path.basename(head_path))[0]}"
+    plot(head_path, "Number of attention heads", "WER (%)", [1, 2, 4, 8, 16], head_out)
 
 
 if __name__ == "__main__":

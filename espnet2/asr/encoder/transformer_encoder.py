@@ -88,8 +88,8 @@ class TransformerEncoder(AbsEncoder):
         decode_all_layers: bool = False,
         decode_3_attn: bool = False,
         divide_layer: int = 9,
+        use_conditioning_lower: bool = False,
         freeze_encoder: bool = False,
-        ica_path: str = None,
         layer_drop_rate: float = 0.0,
     ):
         assert check_argument_types()
@@ -202,6 +202,7 @@ class TransformerEncoder(AbsEncoder):
         self.decode_3_attn = decode_3_attn
         self.num_blocks = num_blocks
         self.divide_layer = divide_layer
+        self.use_conditioning_lower = use_conditioning_lower
 
     def output_size(self) -> int:
         return self._output_size
@@ -266,7 +267,7 @@ class TransformerEncoder(AbsEncoder):
                     all_intermediate_outs.append(xs_pad)
 
             # mapping module
-            if self.interctc_use_conditioning:
+            if self.use_conditioning_lower:
                 if self.conditioning_layer_phn is not None:
                     ctc_out_mid = ctc_phn.softmax(self.after_norm(all_intermediate_outs[mid-1]))
                     xs_pad_mid = self.conditioning_layer_phn(ctc_out_mid)
@@ -286,45 +287,12 @@ class TransformerEncoder(AbsEncoder):
                 final_query = xs_pad.unsqueeze(2)
 
             # divided layers
-            if self.ica_mat is not None:
-                layer_mat = []
-                for x in self.ica_mat:
-                    layer_mat.append({k: v.to(xs_pad.device) for k, v in x.items()})
-                
-                mid_query_center = mid_query.squeeze(2) - layer_mat[mid-1]["mean"]            # (B, T, D)
-                mid_query_trans = mid_query_center @ layer_mat[mid-1]["trans_mat1"]          # (B, T, C)
-                if "trans_mat2" in layer_mat[mid-1]:
-                    mid_query_trans = (mid_query_trans @ layer_mat[mid-1]["trans_mat2"])
-                mid_query = mid_query_trans.unsqueeze(2)  # (B, T, 1, C)
-
-                final_query_center = final_query.squeeze(2) - layer_mat[-1]["mean"]           # (B, T, D)
-                final_query_trans = final_query_center @ layer_mat[-1]["trans_mat1"]          # (B, T, C)
-                if "trans_mat2" in layer_mat[-1]:
-                    final_query_trans = (final_query_trans @ layer_mat[-1]["trans_mat2"])
-                final_query = final_query_trans.unsqueeze(2) # (B, T, 1, C)
-
-                # weighting module
-                intermediate_ica = []
-                for i, mat in enumerate(layer_mat):
-                    centerd = all_intermediate_outs[i] - mat["mean"]         # (B, T, D)
-                    transformed = centerd @ mat["trans_mat1"]                # (B, T, C)
-                    if "trans_mat2" in mat:
-                        transformed = transformed @ mat["trans_mat2"]        # (B, T, C)
-                    intermediate_ica.append(transformed)
-
-                lower_ica = torch.stack(intermediate_ica[:mid], dim=2) # (B, T, L, C)
-                upper_ica = torch.stack(intermediate_ica[mid:], dim=2) # (B, T, L, C)
-                lower_tensor = torch.stack(all_intermediate_outs[:mid], dim=2) # (B, T, L, C)
-                upper_tensor = torch.stack(all_intermediate_outs[mid:], dim=2) # (B, T, L, C)
-
-                lower_ct = self.multihead_attn(mid_query, lower_ica, lower_tensor) # (B, T, D)
-                upper_ct = self.multihead_attn2(final_query, upper_ica, upper_tensor) # (B, T, D)
-            else:
-                # weighting module
-                lower_tensor = torch.stack(all_intermediate_outs[:mid], dim=2) # (B, T, L, D)
-                upper_tensor = torch.stack(all_intermediate_outs[mid:], dim=2) # (B, T, L, D)
-                lower_ct = self.multihead_attn(mid_query, lower_tensor, lower_tensor) # (B, T, D)
-                upper_ct = self.multihead_attn2(final_query, upper_tensor, upper_tensor) # (B, T, D)
+            lower_tensor = torch.stack(all_intermediate_outs[:mid], dim=2) # (B, T, L, D)
+            upper_tensor = torch.stack(all_intermediate_outs[mid:], dim=2) # (B, T, L, D)
+            
+            # weighting module
+            lower_ct = self.multihead_attn(mid_query, lower_tensor, lower_tensor) # (B, T, D)
+            upper_ct = self.multihead_attn2(final_query, upper_tensor, upper_tensor) # (B, T, D)
 
             intermediate_outs = [(self.num_blocks + 1, lower_ct), (self.num_blocks + 2, upper_ct)]
 
